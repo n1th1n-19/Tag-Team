@@ -1,12 +1,15 @@
 # Tag Team one-liner (Windows): irm https://github.com/n1th1n-19/tag-team/releases/latest/download/get.ps1 | iex   (uninstall: $env:TAGTEAM_UNINSTALL=1 first)
+# iex runs in the caller's session; the script block keeps our variables, preferences and return out of it.
+& {
 $ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
 
 $Repo = "n1th1n-19/tag-team"
 $Base = if ($env:TAGTEAM_BASE_URL) { $env:TAGTEAM_BASE_URL }
         elseif ($env:TAGTEAM_VERSION) { "https://github.com/$Repo/releases/download/$env:TAGTEAM_VERSION" }
         else { "https://github.com/$Repo/releases/latest/download" }
 $HomeDir = if ($env:TAGTEAM_HOME) { $env:TAGTEAM_HOME } else { Join-Path $env:USERPROFILE ".tag-team" }
-$Uninstall = ($env:TAGTEAM_UNINSTALL -eq "1") -or ($args -contains "-Uninstall")
+$Uninstall = $env:TAGTEAM_UNINSTALL -eq "1"
 function Say($m) { Write-Host "==> $m" -ForegroundColor Yellow }
 
 $Local = Join-Path $HomeDir "app\install\install.ps1"
@@ -31,6 +34,8 @@ try {
   $Installer = Join-Path $Tmp "tag-team\install\install.ps1"
   if ($Uninstall) { powershell -NoProfile -ExecutionPolicy Bypass -File $Installer -Uninstall }
   else { powershell -NoProfile -ExecutionPolicy Bypass -File $Installer }
+  if ($LASTEXITCODE) { throw "The installer stopped with exit code $LASTEXITCODE." }
 } finally {
   Remove-Item -Recurse -Force $Tmp -ErrorAction SilentlyContinue
+}
 }

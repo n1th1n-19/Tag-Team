@@ -54,7 +54,16 @@ irm https://github.com/n1th1n-19/tag-team/releases/latest/download/get.ps1 | iex
 $env:TAGTEAM_UNINSTALL=1; irm https://github.com/n1th1n-19/tag-team/releases/latest/download/get.ps1 | iex
 ```
 
-Pin a version with `TAGTEAM_VERSION=v0.2.1` in front of `bash` (or `$env:TAGTEAM_VERSION="v0.2.1"` on Windows). Prefer to read before you run? Download `get.sh` / `get.ps1` from the release, look at it, then run it.
+Pin a version with `TAGTEAM_VERSION=v0.2.2` in front of `bash` (or `$env:TAGTEAM_VERSION="v0.2.2"` on Windows). Prefer to read before you run? Download `get.sh` / `get.ps1` from the release, look at it, then run it.
+
+`SHA256SUMS.txt` catches a broken or swapped download, but it lives in the same release. To check that a file was built by this repo's GitHub Actions and not uploaded by hand, use [GitHub CLI](https://cli.github.com) (releases from v0.2.2 on):
+
+```bash
+gh release download -R n1th1n-19/Tag-Team -p get.sh
+gh attestation verify get.sh -R n1th1n-19/Tag-Team && bash get.sh
+```
+
+Every release is installed and uninstalled for real on macOS, Linux and Windows (PowerShell 5.1) in CI before it is published.
 
 **Or download a zip:**
 

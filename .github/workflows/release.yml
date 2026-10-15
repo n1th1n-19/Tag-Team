@@ -24,18 +24,82 @@ jobs:
       - run: uv tool install --python 3.12 . && tagteam --version
         shell: bash
 
-  release:
-    needs: test
-    if: startsWith(github.ref, 'refs/tags/v')
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - run: python3 scripts/package.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  # The one-liners, run for real against the built release (no uv preinstalled, so the pinned uv download runs too).
+  install:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Install and uninstall (macOS / Linux)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 --directory dist >/dev/null 2>&1 &
+          sleep 2
+          export TAGTEAM_BASE_URL=http://127.0.0.1:8765
+          curl -fsSL "$TAGTEAM_BASE_URL/get.sh" | bash
+          ~/.local/bin/tagteam --version
+          curl -fsSL "$TAGTEAM_BASE_URL/get.sh" | bash -s -- --uninstall
+          test ! -e ~/.local/bin/tagteam
+          test ! -d ~/.tag-team/app
+      - name: Install and uninstall (Windows PowerShell 5.1)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          Start-Process python -ArgumentList '-m', 'http.server', '8765', '--bind', '127.0.0.1', '--directory', 'dist' -WindowStyle Hidden
+          Start-Sleep 3
+          $env:TAGTEAM_BASE_URL = "http://127.0.0.1:8765"
+          irm "$env:TAGTEAM_BASE_URL/get.ps1" | iex
+          & "$env:USERPROFILE\.local\bin\tagteam.exe" --version
+          if ($LASTEXITCODE) { throw "tagteam did not run" }
+          $env:TAGTEAM_UNINSTALL = "1"
+          irm "$env:TAGTEAM_BASE_URL/get.ps1" | iex
+          if (Test-Path "$env:USERPROFILE\.local\bin\tagteam.exe") { throw "tagteam is still installed" }
+          if (Test-Path "$env:USERPROFILE\.tag-team\app") { throw "the app folder was left behind" }
+          Write-Host "install + uninstall OK"
+
+  release:
+    needs: [test, install]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      # Proof each download was built by this repo's CI: gh attestation verify <file> -R n1th1n-19/Tag-Team
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/tag-team-*.zip
+            dist/tag-team.vsix
+            dist/get.sh
+            dist/get.ps1
       - name: Publish release with the three downloads
         env:
           GH_TOKEN: ${{ github.token }}

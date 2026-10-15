@@ -31,3 +31,4 @@ plugin/.claude-plugin/types/
 Thumbs.db
 .idea/
 /.vscode/
+uv.lock
