@@ -4,6 +4,10 @@
 
 Built on [claude-swap](https://github.com/realiti4/claude-swap) (`cswap`). Works in the Claude Code terminal, in VS Code / VSCodium / Cursor, and in your browser.
 
+[![Watch the match: a 98-second pixel-art tag-team match with commentary, then how to install and use Tag Team](docs/media/tag-team.jpg)](https://n1th1n-19.github.io/Tag-Team/#watch)
+
+▶ **[Watch the match](https://n1th1n-19.github.io/Tag-Team/#watch)** (98 s, with commentary and captions) · [download the MP4](docs/media/tag-team.mp4)
+
 ![The ring: TAG ME banner, career score, partners with life bars, match history](docs/ring.png)
 
 ## How the match works
