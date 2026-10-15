@@ -19,6 +19,7 @@ Tag Team does that for your Claude accounts:
   corner man        keeps blind-tagging when Claude Code is closed (background service)
   roster / sign / release / bench   your accounts / add one / remove one / leave one out of blind tags
   ring name         an alias            match history   your daily token use, a year at a glance
+                    (life bars count all of Claude; match history counts Claude Code on this computer)
   career            all-time totals     purse           estimated API price of those tokens
   before the bell   usage from before Tag Team started keeping score
 
