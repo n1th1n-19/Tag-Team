@@ -1,4 +1,4 @@
-"""tagteam: your Claude accounts are a tag team. Tag a fresh partner in before the one in the ring is worn down."""
+"""tagteam: your Claude accounts are a tag team. See each account's usage and tag the right one in."""
 
 from __future__ import annotations
 

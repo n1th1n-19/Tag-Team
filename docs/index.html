@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tag Team Wrestling</title>
-<meta name="description" content="Your Claude accounts are a tag team. Stamina for every partner, a retro match history of your token use, and TAG ME to switch before one is worn down.">
+<meta name="description" content="Your work and personal Claude accounts side by side: usage as life bars, a retro match history of your token use, and one-click switching between them.">
 <link rel="icon" href="assets/icon.png">
 <style>
 @font-face { font-family: "Press Start 2P"; src: url(assets/PressStart2P-latin.woff2) format("woff2"); font-display: swap; }
@@ -51,7 +51,7 @@ footer { color: var(--muted); font-size: 20px; margin-top: 30px; }
   <section class="hero">
     <div id="ring" aria-hidden="true"></div>
     <h1>TAG TEAM WRESTLING</h1>
-    <p class="lede">Your Claude accounts are a tag team. When the partner in the ring is worn down, slap hands and tag a fresh one in.</p>
+    <p class="lede">Your work and personal Claude accounts are a tag team. See how much each one has left, and tag the right one in with one click.</p>
     <span class="press">PRESS TAG</span>
   </section>
 
@@ -81,10 +81,11 @@ footer { color: var(--muted); font-size: 20px; margin-top: 30px; }
       <dt>Stamina / endurance</dt><dd>the 5-hour and weekly usage limits, drawn as life bars</dd>
       <dt>TAG ME</dt><dd>appears when the partner in the ring is worn down (90% by default); one press tags in the freshest partner</dd>
       <dt>Hot tag</dt><dd>the big tag to whoever has the most stamina left</dd>
-      <dt>Blind tag</dt><dd>tags itself before anyone's worn down; the corner man keeps it going with Claude Code closed</dd>
+      <dt>Blind tag</dt><dd>switches automatically to another partner, by default the one with the most stamina left, or the one whose weekly limit resets soonest if you choose that (off unless you turn it on); the corner man keeps it going with Claude Code closed</dd>
       <dt>Match history</dt><dd>a year of your daily token use; career totals, purse (API-price estimate), show streak, main event</dd>
       <dt>Roster</dt><dd>sign partners, give them ring names, bench or release them</dd>
     </dl>
+    <p class="muted" style="margin-bottom:0">For accounts you legitimately have, like work and personal. Our advice: don't create accounts to get around usage limits. Please read and follow Anthropic's <a href="https://www.anthropic.com/legal/aup">Usage Policy</a> and <a href="https://www.anthropic.com/legal/consumer-terms">Consumer Terms</a>.</p>
   </section>
 
   <section class="box">
@@ -106,7 +107,7 @@ footer { color: var(--muted); font-size: 20px; margin-top: 30px; }
     </ol>
   </section>
 
-  <footer>Built on <a href="https://github.com/realiti4/claude-swap">claude-swap</a>. Your match history never leaves your machine. Tag Team uses generic wrestling words and isn't affiliated with any wrestling company or with Anthropic; the mascot is fan art.</footer>
+  <footer>Built on <a href="https://github.com/realiti4/claude-swap">claude-swap</a>. Your match history never leaves your machine. Tag Team uses generic wrestling words and isn't affiliated with any wrestling company or with Anthropic.</footer>
 </main>
 <script src="assets/mascot.js"></script>
 <script>

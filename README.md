@@ -1,6 +1,6 @@
 # Tag Team Wrestling
 
-**Your Claude accounts are a tag team.** In tag-team wrestling, partners share one match: one fights in the ring, the others wait on the apron, and when the one inside is worn down they slap hands and tag a fresh partner in. Tag Team Wrestling does that for Claude Code. It shows each account's **stamina** (5-hour limit) and **endurance** (weekly limit), keeps a retro **match history** of your token use, and puts up a **TAG ME** button so you can switch accounts before one runs out.
+**Your Claude accounts are a tag team.** If you have more than one Claude account, say one for work and one personal, Tag Team Wrestling puts them side by side like a wrestling tag team: one partner is in the ring (the account Claude Code is using), the other waits on the apron. It shows each account's **stamina** (5-hour usage limit) and **endurance** (weekly limit) as life bars, keeps a retro **match history** of your token use, and switches the account Claude Code uses with one click: **TAG ME**.
 
 Built on [claude-swap](https://github.com/realiti4/claude-swap) (`cswap`). Works in the Claude Code terminal, in VS Code / VSCodium / Cursor, and in your browser.
 
@@ -21,7 +21,7 @@ Built on [claude-swap](https://github.com/realiti4/claude-swap) (`cswap`). Works
 | **Down for the count / K.O.** | a limit is used up (100%) |
 | **TAG ME** | the button that appears when you're worn down: one press tags in the freshest partner |
 | **Tag in / tag out / hot tag** | switch to a partner / hand off / tag the partner with the most stamina left |
-| **Blind tag** | automatic tagging before anyone's worn down; the **corner man** keeps it running with Claude Code closed |
+| **Blind tag** | switches automatically to another partner, by default the one with the most stamina left, or the one whose weekly limit resets soonest if you choose that (off unless you turn it on); the **corner man** keeps it running with Claude Code closed |
 | **Roster, sign, ring name, bench, release** | your accounts, adding one, its alias, leaving it out of blind tags, removing it |
 | **Match history** | a year of daily token use, GitHub-style; **career** totals, **purse** (API-price estimate), **show streak**, **main event** |
 | **Before the bell** | usage from before Tag Team started keeping score |
@@ -35,7 +35,7 @@ Built on [claude-swap](https://github.com/realiti4/claude-swap) (`cswap`). Works
   - *Editors*: the status bar `[IN] work ▮▮▮▯▯ 41%` turns into a red **TAG ME** button (one click tags out), with a notification offering *TAG ME > partner*, *Hot tag: best* and *Open the ring*.
   - *Claude Code terminal*: a **REACH FOR THE TAG!** bar above the prompt with a TAG ME button.
   - *Claude Code chat in editors*: `/tag-team` replies with the roster and the `/tag-out` hint. Editor chat panels can't show plugin buttons, so the button lives in the extension's status bar.
-- **Blind tag**: switches for you, using claude-swap's own engine (cooldowns, hysteresis, no bouncing back).
+- **Blind tag**: switches partners for you using claude-swap's own engine (cooldowns, hysteresis, no bouncing back). By default it picks the partner with the most stamina left; you can choose the one whose weekly limit resets soonest instead. Off unless you turn it on.
 - **Roster**: sign the current login, bring in a new partner via `/login`, sign by contract (a `claude setup-token` token or API key, passed on stdin), ring names, bench, release.
 - **Status line** for Claude Code: `[IN] work · ▮▮▮▯▯ stamina 41% · endurance 79% · tonight 236M`.
 - **Export** of the match history as CSV or JSON.
@@ -125,6 +125,12 @@ tagteam statusline               # for Claude Code's statusLine setting
 - **Tags** go through claude-swap's JSON interface (`cswap list --json`, `cswap switch --json`, `cswap auto --once --json`), which handles the locking, keychain or credentials file, and token refresh.
 - **Purse** prices tokens at public API rates. It's an estimate of what the tokens would cost on the API, not what a Pro or Max plan charges.
 
+## Use it within Anthropic's terms
+
+Tag Team is for switching between Claude accounts you legitimately have, like a work account and a personal one. It never shares your login with anyone, proxies requests or resells access: it only changes which of your own logins Claude Code uses, on your machine.
+
+Our advice: don't sign up for extra accounts to get around usage limits. Anthropic's [Usage Policy](https://www.anthropic.com/legal/aup) restricts using multiple accounts to avoid detection or to get around its guardrails, and its [Consumer Terms](https://www.anthropic.com/legal/consumer-terms) let it suspend accounts it believes break the rules. Read them yourself; you're responsible for how your accounts are used.
+
 ## Privacy and security
 
 - Your match history stays on your machine; Tag Team makes no network calls of its own (claude-swap calls Anthropic's usage endpoint as it always does).
@@ -138,13 +144,13 @@ tagteam statusline               # for Claude Code's statusLine setting
 
 ## Design
 
-The mascot (two Claude-style critters tag-teaming, one in red trunks, one in blue) was drawn in Figma: [Tag Team Wrestling: mascot](https://www.figma.com/design/R7exq8p1eMzkr0end2nxf1). Every pixel is a 1×1 rectangle on a 32×32 grid with palette color styles; the frames are `mascot/icon`, `mascot/slap-1..4` (the tag animation), `ring` and `belt`.
+The mascot (two lavender pixel critters tag-teaming, one in red trunks, one in blue) was drawn in Figma: [Tag Team Wrestling: mascot](https://www.figma.com/design/R7exq8p1eMzkr0end2nxf1), page *Mascot v2*. Every pixel is a 1×1 rectangle on a 32×32 grid; the frames are `mascot/icon`, `mascot/slap-1..4` (the tag animation), `mascot/red` and `mascot/blue` (portraits), `ring` and `belt`.
 
 `tagteam/web/mascot.js` is the export (one character per pixel) and the only copy the code uses: the ring page, the editor extension icon (`art.png`), the terminal banner (`art.banner`) and the plugin all read it. To change the art, edit it in Figma and re-run the export (a read-only `use_figma` script that walks each frame's rectangles and returns `{palette, frames}`), then paste the result into `mascot.js`.
 
 Fonts: [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P) and [VT323](https://fonts.google.com/specimen/VT323), both under the SIL Open Font License (`tagteam/web/fonts/OFL-*.txt`), bundled so the ring works offline.
 
-Tag Team uses generic wrestling words. It isn't affiliated with any wrestling company or with Anthropic, and the mascot is fan art of Claude's mascot.
+Tag Team uses generic wrestling words. It isn't affiliated with any wrestling company or with Anthropic.
 
 ## Project layout
 
