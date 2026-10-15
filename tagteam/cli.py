@@ -27,6 +27,19 @@ def fmt_tokens(n: float) -> str:
     return str(int(n))
 
 
+BARS_SOURCE = "life bars: all of Claude on each account, from Anthropic"
+HISTORY_SOURCE = "Claude Code on this computer only"
+
+
+def score_note(lifetime: dict) -> str:
+    """Where SCORE comes from, and how much of it is cache reads (the same context re-read every turn)."""
+    total = lifetime.get("total") or 0
+    if not total:
+        return HISTORY_SOURCE
+    reads = lifetime.get("cacheRead") or 0
+    return f"{HISTORY_SOURCE} · {reads / total:.0%} cache reads · {fmt_tokens(total - reads)} fresh"
+
+
 def score(n: int) -> str:
     return f"{int(n):015,d}"
 
@@ -95,6 +108,7 @@ def print_ring_card(s: dict, account: str = "all") -> None:
         "",
         bold("IN THE RING: ") + (act["label"] or "nobody") + ("" if act["managed"] or not act["label"] else "  (not signed)"),
         gold("SCORE ") + bold(score(t["lifetime"]["total"])) + "  career tokens",
+        score_note(t["lifetime"]),
         f"purse ${t['lifetime']['cost']:,.2f} (API-price estimate)",
     ]
     banner = art.banner(color=color) if sys.stdout.encoding and "utf" in sys.stdout.encoding.lower() else []
@@ -109,10 +123,10 @@ def print_ring_card(s: dict, account: str = "all") -> None:
           f"MAIN EVENT {hm['busiest']['date'] + ' ' + fmt_tokens(hm['busiest']['total']) if hm['busiest'] else '-'}  ·  "
           f"LAST HOUR {fmt_tokens(tok['burnPerHour'])}")
     print()
-    print(bold(f"MATCH HISTORY  {fmt_tokens(hm['yearTotal'])} tokens in the last year"))
+    print(bold(f"MATCH HISTORY  {fmt_tokens(hm['yearTotal'])} tokens in the last year") + f"  ({HISTORY_SOURCE})")
     print(heatmap_text(hm, color))
     print()
-    print(bold("ROSTER"))
+    print(bold("ROSTER") + f"  ({BARS_SOURCE})")
     for r in s["accounts"]:
         u = r.get("usage") or r.get("lastGoodUsage") or {}
         five = (u.get("fiveHour") or {}).get("pct")

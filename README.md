@@ -23,7 +23,7 @@ Built on [claude-swap](https://github.com/realiti4/claude-swap) (`cswap`). Works
 | **Tag in / tag out / hot tag** | switch to a partner / hand off / tag the partner with the most stamina left |
 | **Blind tag** | switches automatically to another partner, by default the one with the most stamina left, or the one whose weekly limit resets soonest if you choose that (off unless you turn it on); the **corner man** keeps it running with Claude Code closed |
 | **Roster, sign, ring name, bench, release** | your accounts, adding one, its alias, leaving it out of blind tags, removing it |
-| **Match history** | a year of daily token use, GitHub-style; **career** totals, **purse** (API-price estimate), **show streak**, **main event** |
+| **Match history** | a year of daily token use by Claude Code on this computer, GitHub-style; **career** totals, **purse** (API-price estimate), **show streak**, **main event** |
 | **Before the bell** | usage from before Tag Team started keeping score |
 
 `tagteam rules` prints this glossary any time.
@@ -126,6 +126,15 @@ tagteam statusline               # for Claude Code's statusLine setting
 ```
 
 ## How it works
+
+**Where the numbers come from.** The life bars and the match history measure different things, so they won't line up if you also use Claude outside Claude Code:
+
+| Number | Source | Covers |
+|---|---|---|
+| Stamina, endurance, TAG ME | Anthropic's usage API, through claude-swap | **All of Claude** on that account: chat (web, desktop, mobile), Claude Code (terminal, IDE, desktop, web), Claude Design, Cowork and other Claude apps |
+| Score, match history, purse, streaks | Claude Code transcripts on this computer | **Claude Code on this computer only**: the terminal, VS Code / Cursor / JetBrains, and Agent SDK apps. Claude chat, Claude Design, Cowork and Claude Code on the web leave no local log. |
+
+Most of the score is usually **cache reads**: every turn, Claude Code re-sends the conversation so far, and the API serves it from cache. The ring shows that share and the **fresh** tokens (input, output and cache writes) under the score.
 
 - **Tokens** come from Claude Code's own transcripts (`~/.claude/projects/**/*.jsonl`): each assistant message carries its usage. Tag Team counts each message once and adds them up by night, partner and model, reading only new lines each refresh.
 - **Career totals survive cleanup.** Claude Code deletes old transcripts; Tag Team keeps a daily ledger in `~/.tag-team/ledger.json`.

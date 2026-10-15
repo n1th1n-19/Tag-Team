@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
-import type { Account, Heatmap, Metric, Snapshot, Tab } from '../types'
+import type { Account, Heatmap, Metric, Snapshot, Sum, Tab } from '../types'
 
 const PANE = 'tag-team'
 const snap = atom({ plugin: 'tag-team', key: 'snap' } as const, null)
@@ -23,6 +23,8 @@ export const fmt = (n: number): string => {
   return String(Math.round(n || 0))
 }
 const money = (n: number) => '$' + (n || 0).toFixed(2)
+/** Where the token numbers come from, and how much is cache reads (the same context re-read every turn). */
+const scoreNote = (l: Sum) => 'Claude Code on this computer only' + (l.total ? ` · ${Math.round((100 * l.cacheRead) / l.total)}% cache reads · ${fmt(l.total - l.cacheRead)} fresh` : '')
 export const bar = (pct: number, width = 16) => {
   const filled = Math.max(0, Math.min(width, Math.round((pct / 100) * width)))
   return '█'.repeat(filled) + '░'.repeat(width - filled)
@@ -284,7 +286,7 @@ async function overview($: any, ui: any, e: any, s: Snapshot, width: number) {
   return (
     <Box flexDirection="column" gap={1}>
       {alertsView($, ui, s)}
-      <Box flexDirection="column">{lanes}</Box>
+      <Box flexDirection="column">{lanes}<Text dimColor>Life bars: all of Claude on each account, from Anthropic</Text></Box>
       <Box flexDirection="column">
         <Box flexDirection="row" flexWrap="wrap" gap={1} alignItems="center">
           <Text bold>MATCH HISTORY · {m === 'cost' ? money(hm.yearCost) : fmt(m === 'output' ? hm.cells.reduce((n, c) => n + c.output, 0) : hm.yearTotal)} {m === 'cost' ? 'purse' : m === 'output' ? 'output tokens' : 'tokens'} in the last year</Text>
@@ -297,9 +299,10 @@ async function overview($: any, ui: any, e: any, s: Snapshot, width: number) {
           )}
         </Box>
         {heat}
-        <Text dimColor>Cold → hot · show streak {hm.streak} (best {hm.longestStreak}) · {hm.activeDays} nights in the ring{hm.busiest ? ` · main event ${hm.busiest.date} (${fmt(hm.busiest.total)})` : ''}</Text>
+        <Text dimColor>Claude Code on this computer only · cold → hot · show streak {hm.streak} (best {hm.longestStreak}) · {hm.activeDays} nights in the ring{hm.busiest ? ` · main event ${hm.busiest.date} (${fmt(hm.busiest.total)})` : ''}</Text>
       </Box>
       <Text><Text bold color="warning">SCORE {String(Math.round(t.lifetime.total)).padStart(12, '0').replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</Text> · tonight <Text bold>{fmt(t.today.total)}</Text> ({money(t.today.cost)}) · this month <Text bold>{fmt(t.month.total)}</Text> ({money(t.month.cost)}) · purse {money(t.lifetime.cost)} · last hour {fmt(s.tokens.burnPerHour)}</Text>
+      <Text dimColor>{scoreNote(t.lifetime)}</Text>
       <Box flexDirection="column">
         <Text bold>HIGH SCORES · MONTHS</Text>
         {months.map(x => <Text key={`mo-${x.month}`}>{x.month}  {bar((x[m] / maxMonth) * 100, 24)}  {m === 'cost' ? money(x.cost) : fmt(x[m])}</Text>)}
@@ -434,7 +437,7 @@ export function summary(s: Snapshot): string {
       return `| ${a.number} | ${a.label} | ${five} | ${seven} | ${fmt(a.tokens.today.total)} | ${fmt(a.tokens.month.total)} | ${a.active ? '**IN THE RING**' : a.nearLimit ? 'worn down' : 'on the apron'} |`
     }),
     '',
-    t ? `Tokens: tonight **${fmt(t.today.total)}** (${money(t.today.cost)}) · this month **${fmt(t.month.total)}** (${money(t.month.cost)}) · career **${fmt(t.lifetime.total)}** (purse ${money(t.lifetime.cost)})` : '',
+    t ? `Tokens: tonight **${fmt(t.today.total)}** (${money(t.today.cost)}) · this month **${fmt(t.month.total)}** (${money(t.month.cost)}) · career **${fmt(t.lifetime.total)}** (purse ${money(t.lifetime.cost)})\n\n_${scoreNote(t.lifetime)}. The Stamina and Endurance columns count all of Claude on each account._` : '',
     ...s.alerts.map(a => `\n${a.kind === 'near-limit' ? `**${a.ko ? 'DOWN FOR THE COUNT' : 'REACH FOR THE TAG'}!** ` : '⚠ '}${a.message}.${a.suggest ? ` **TAG ME:** run \`/tag-out\` to tag in ${a.suggest.label} (${Math.round(a.suggest.pct)}% used).` : ''}`),
     '',
     'Tag in: `/tag-in <number|ring name|best>` · hot tag: `/tag-out` · ring card: `/roster` · blind tag: `/blind-tag on`',

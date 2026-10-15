@@ -259,6 +259,13 @@ def test_auto_update_job_on_and_off():
             updater.subprocess.run = real
 
 
+def test_score_note_splits_cache_reads():
+    from tagteam.cli import score_note
+    assert score_note({"total": 0}) == "Claude Code on this computer only"
+    note = score_note({"total": 1_000_000_000, "cacheRead": 980_000_000})
+    assert "98% cache reads" in note and "20.0M fresh" in note, note
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

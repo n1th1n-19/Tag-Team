@@ -165,6 +165,7 @@ footer { margin-top: 26px; font-size: 19px; color: var(--muted); }
       <div>
         <div class="display muted" style="font-size:10px">SCORE · career tokens</div>
         <div class="digits" id="score">000,000,000,000</div>
+        <div class="muted" id="scoreNote" title="Counts Claude Code on this computer: the terminal, VS Code / Cursor / JetBrains, and Agent SDK apps. Claude chat, Claude Design, Cowork and Claude Code on the web run on Anthropic's servers and leave no local log, so they aren't counted.">Claude Code on this computer only</div>
         <div class="stats">
           <span>TONIGHT <b id="sToday">-</b></span><span>THIS MONTH <b id="sMonth">-</b></span>
           <span>PURSE <b id="sPurse">-</b></span><span>SHOW STREAK <b id="sStreak">-</b></span>
@@ -174,6 +175,7 @@ footer { margin-top: 26px; font-size: 19px; color: var(--muted); }
     </div>
 
     <h2>SELECT YOUR PARTNER</h2>
+    <p class="muted" style="margin:-6px 0 10px" title="Counts everything on this account: Claude chat (web, desktop, mobile), Claude Code (terminal, IDE, desktop, web), Claude Design, Cowork and other Claude apps.">Life bars: all of Claude on each account, straight from Anthropic</p>
     <div class="select" id="cards"></div>
 
     <div class="box history" style="margin-bottom:14px">
@@ -187,6 +189,7 @@ footer { margin-top: 26px; font-size: 19px; color: var(--muted); }
       <div class="scroll"><svg id="heatmap" role="img" aria-label="Daily token use for the last year"></svg></div>
       <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:8px">
         <span id="dayInfo" class="muted">Pick a night to see its card.</span>
+        <span class="muted" title="Counts Claude Code on this computer: the terminal, VS Code / Cursor / JetBrains, and Agent SDK apps. Claude chat, Claude Design, Cowork and Claude Code on the web run on Anthropic's servers and leave no local log, so they aren't counted.">Claude Code on this computer only</span>
         <span class="legend">Cold <i style="background:var(--h0)"></i><i style="background:var(--h1)"></i><i style="background:var(--h2)"></i><i style="background:var(--h3)"></i><i style="background:var(--h4)"></i> Hot</span>
       </div>
     </div>
@@ -354,6 +357,8 @@ function renderHistory() {
   const yearVal = metric === "cost" ? money(hm.yearCost) : fmt(metric === "output" ? hm.cells.reduce((a, c) => a + (c.future ? 0 : c.output), 0) : hm.yearTotal);
   $("histTitle").textContent = `MATCH HISTORY · ${yearVal} ${metric === "cost" ? "PURSE" : metric === "output" ? "OUTPUT" : "TOKENS"} THIS YEAR`;
   $("score").textContent = scoreDigits(tot.lifetime.total);
+  const reads = tot.lifetime.cacheRead || 0, all = tot.lifetime.total || 0;
+  $("scoreNote").textContent = "Claude Code on this computer only" + (all ? ` · ${Math.round(100 * reads / all)}% cache reads · ${fmt(all - reads)} fresh` : "");
   $("sToday").textContent = `${fmt(tot.today.total)} (${money(tot.today.cost)})`;
   $("sMonth").textContent = `${fmt(tot.month.total)} (${money(tot.month.cost)})`;
   $("sPurse").textContent = money(tot.lifetime.cost);
