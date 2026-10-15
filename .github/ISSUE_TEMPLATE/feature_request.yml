@@ -1,0 +1,21 @@
+name: Feature idea
+description: A new move for the ring
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The situation, not the solution. "I switch accounts mid-session and lose track of which one is in the ring" beats "add a sound".
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where would it live?
+      multiple: true
+      options: [tagteam CLI, Claude Code plugin, Editor extension, The ring in the browser, Installer]

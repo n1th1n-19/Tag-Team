@@ -1,0 +1,63 @@
+name: Bug report
+description: Something in Tag Team doesn't work
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please **leave out emails, organization names, account UUIDs and tokens**: `tagteam state` and `cswap list` show them. Security problems go to [private reporting](https://github.com/n1th1n-19/Tag-Team/security/advisories/new), not here.
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Output of `tagteam --version` and `cswap --version`
+      placeholder: tagteam 0.4.1, cswap 0.27.1
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options: [macOS, Linux, Windows]
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where did it happen?
+      multiple: true
+      options:
+        - tagteam CLI
+        - Claude Code plugin (terminal)
+        - Claude Code plugin (editor chat)
+        - VS Code / VSCodium / Cursor extension
+        - The ring in the browser
+        - Installer / tagteam update
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. tagteam tag-out-point 85
+        2. ...
+  - type: textarea
+    id: output
+    attributes:
+      label: Error output
+      description: Command output or the installer log, with personal data removed
+      render: text
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: I removed emails, organization names, account IDs and tokens from everything above
+          required: true
