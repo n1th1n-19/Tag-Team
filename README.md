@@ -56,7 +56,7 @@ $env:TAGTEAM_UNINSTALL=1; irm https://github.com/n1th1n-19/tag-team/releases/lat
 
 Pin a version with `TAGTEAM_VERSION=v0.2.2` in front of `bash` (or `$env:TAGTEAM_VERSION="v0.2.2"` on Windows). Prefer to read before you run? Download `get.sh` / `get.ps1` from the release, look at it, then run it.
 
-`SHA256SUMS.txt` catches a broken or swapped download, but it lives in the same release. To check that a file was built by this repo's GitHub Actions and not uploaded by hand, use [GitHub CLI](https://cli.github.com) (releases from v0.2.2 on):
+`SHA256SUMS.txt` catches a broken or swapped download, but it lives in the same release. To check that a file was built by this repo's GitHub Actions and not uploaded by hand, use [GitHub CLI](https://cli.github.com) 2.49 or newer (releases from v0.2.2 on):
 
 ```bash
 gh release download -R n1th1n-19/Tag-Team -p get.sh
@@ -83,7 +83,7 @@ Plugin only, at a Claude Code prompt: `/plugin install tag-team --marketplace n1
 
 **Coming from swap-me?** The installer removes swap-me (command, plugin, extension, service) and your history in `~/.swap-me` moves to `~/.tag-team` the first time `tagteam` runs. `swapme` still works for this version and points you to `tagteam`.
 
-Uninstall: the one-liner above, or `./install/install.sh --uninstall` (`install.ps1 -Uninstall`). Your match history in `~/.tag-team` is kept.
+Uninstall: the one-liner above, or `./install/install.sh --uninstall` (`install.ps1 -Uninstall`). It removes the `tagteam` command, the Claude Code plugin, the editor extension and the corner man; claude-swap (`cswap`) stays. Your match history in `~/.tag-team` is kept; delete that folder to remove it too.
 
 ## First match
 
@@ -129,6 +129,8 @@ tagteam statusline               # for Claude Code's statusLine setting
 - Files in `~/.tag-team` are owner-only (0600).
 - Programs are run by absolute path from PATH, never from the current folder, so a `cswap.bat` or `tagteam.exe` planted in a project can't be picked up. The editor extension only takes the `tagteam` path from your user settings, not from a workspace.
 - The browser ring's secret token never appears on the browser's command line.
+- Downloads are checked before anything runs: the one-liners check the release zip against `SHA256SUMS.txt`, the installers check uv against pinned SHA-256s, and every release file carries a GitHub build attestation (`gh attestation verify`).
+- Each release is built once in CI, installed and uninstalled for real on macOS, Linux and Windows, and only that tested build is published.
 
 ## Design
 
@@ -147,8 +149,9 @@ tagteam/           Python package (stdlib only): transcript scanner, ledger, csw
 tagteam/web/       the ring (one HTML file), mascot.js (Figma export), pixel fonts
 plugin/            Claude Code plugin: the ring pane, TAG ME band, status line, commands, skill
 vscode/            VS Code / VSCodium extension: [IN] / TAG ME status bar, notifications, the ring panel
-install/           installers for macOS/Linux (install.sh) and Windows (install.ps1)
-scripts/package.py builds tag-team.vsix and the three release zips
+install/           installers (install.sh, install.ps1) and the one-line bootstraps (get.sh, get.ps1)
+scripts/package.py builds tag-team.vsix, the three release zips and SHA256SUMS.txt
+.github/workflows/ release.yml: tests, build, real install/uninstall on 3 OSes, attest, publish
 docs/              the download page
 tests/             Python tests; plugin/tests: plugin tests (claude plugin test plugin)
 ```
@@ -162,7 +165,7 @@ claude --plugin-dir plugin     # Claude Code with your working copy of the plugi
 python scripts/package.py      # tag-team.vsix (needs Node) + the three release zips
 ```
 
-Releases: push a tag like `v0.2.0`; GitHub Actions runs the tests, builds the zips and the vsix, and attaches them to the release.
+Releases: bump the version in `pyproject.toml`, `tagteam/__init__.py`, `plugin/.claude-plugin/plugin.json` and `vscode/package.json`, then push a tag like `v0.2.3`. GitHub Actions runs the tests on all three OSes, builds the zips and the vsix once, runs the one-liners against that build (install, `tagteam --version`, uninstall, nothing left behind) on macOS, Linux and Windows PowerShell 5.1, attests the files, and publishes the release. If any step fails, nothing is published.
 
 ## License
 
