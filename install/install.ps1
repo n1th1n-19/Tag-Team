@@ -8,6 +8,8 @@ $App = Join-Path $HomeDir "app"
 function Say($m) { Write-Host "==> $m" -ForegroundColor Yellow }
 function Have($c) { [bool](Get-Command $c -ErrorAction SilentlyContinue) }
 $Editors = @("code", "codium", "cursor")
+# uv and tagteam live here; a terminal opened before the install doesn't have it on PATH yet.
+$env:Path = (Join-Path $env:USERPROFILE ".local\bin") + ";" + $env:Path
 
 function Remove-SwapMe {
   if (Have swapme) { try { swapme auto service uninstall | Out-Null } catch {} }

@@ -8,6 +8,8 @@ APP="$HOME_DIR/app"
 
 say() { printf '\033[1;33m==>\033[0m %s\n' "$*"; }
 have() { command -v "$1" >/dev/null 2>&1; }
+# uv and tagteam live here; a shell opened before the install doesn't have it on PATH yet.
+export PATH="$HOME/.local/bin:$PATH"
 
 remove_swap_me() {  # swap-me 0.1, the old name
   have swapme && swapme auto service uninstall >/dev/null 2>&1 || true
