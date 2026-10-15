@@ -10,7 +10,7 @@
     {
       "name": "tag-team",
       "source": "./plugin",
-      "description": "Stamina for every Claude account, a retro match history of your token use, and TAG ME to switch before one is worn down"
+      "description": "Your work and personal Claude accounts side by side: usage as fighting-game life bars, a retro match history of your token use, and one-click switching between them. Built on claude-swap."
     }
   ]
 }

@@ -1,7 +1,7 @@
 {
   "name": "tag-team",
   "version": "0.2.2",
-  "description": "Tag Team Wrestling: your Claude accounts are a tag team. Stamina for every partner, a retro match history of your token use, and TAG ME to switch before one is worn down. Built on claude-swap.",
+  "description": "Tag Team Wrestling: Your work and personal Claude accounts side by side: usage as fighting-game life bars, a retro match history of your token use, and one-click switching between them. Built on claude-swap.",
   "author": {
     "name": "n1th1n-19"
   },

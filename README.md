@@ -1,6 +1,6 @@
 # Tag Team Wrestling
 
-**Your Claude accounts are a tag team.** In tag-team wrestling, partners share one match: one fights in the ring, the others wait on the apron, and when the one inside is worn down they slap hands and tag a fresh partner in. Tag Team Wrestling does that for Claude Code. It shows each account's **stamina** (5-hour limit) and **endurance** (weekly limit), keeps a retro **match history** of your token use, and puts up a **TAG ME** button so you can switch accounts before one runs out.
+**Your Claude accounts are a tag team.** If you have more than one Claude account, say one for work and one personal, Tag Team Wrestling puts them side by side like a wrestling tag team: one partner is in the ring (the account Claude Code is using), the other waits on the apron. It shows each account's **stamina** (5-hour usage limit) and **endurance** (weekly limit) as life bars, keeps a retro **match history** of your token use, and switches the account Claude Code uses with one click: **TAG ME**.
 
 Built on [claude-swap](https://github.com/realiti4/claude-swap) (`cswap`). Works in the Claude Code terminal, in VS Code / VSCodium / Cursor, and in your browser.
 
@@ -21,7 +21,7 @@ Built on [claude-swap](https://github.com/realiti4/claude-swap) (`cswap`). Works
 | **Down for the count / K.O.** | a limit is used up (100%) |
 | **TAG ME** | the button that appears when you're worn down: one press tags in the freshest partner |
 | **Tag in / tag out / hot tag** | switch to a partner / hand off / tag the partner with the most stamina left |
-| **Blind tag** | automatic tagging before anyone's worn down; the **corner man** keeps it running with Claude Code closed |
+| **Blind tag** | switches automatically to the partner with the most stamina left (off unless you turn it on); the **corner man** keeps it running with Claude Code closed |
 | **Roster, sign, ring name, bench, release** | your accounts, adding one, its alias, leaving it out of blind tags, removing it |
 | **Match history** | a year of daily token use, GitHub-style; **career** totals, **purse** (API-price estimate), **show streak**, **main event** |
 | **Before the bell** | usage from before Tag Team started keeping score |
@@ -35,7 +35,7 @@ Built on [claude-swap](https://github.com/realiti4/claude-swap) (`cswap`). Works
   - *Editors*: the status bar `[IN] work ▮▮▮▯▯ 41%` turns into a red **TAG ME** button (one click tags out), with a notification offering *TAG ME > partner*, *Hot tag: best* and *Open the ring*.
   - *Claude Code terminal*: a **REACH FOR THE TAG!** bar above the prompt with a TAG ME button.
   - *Claude Code chat in editors*: `/tag-team` replies with the roster and the `/tag-out` hint. Editor chat panels can't show plugin buttons, so the button lives in the extension's status bar.
-- **Blind tag**: switches for you, using claude-swap's own engine (cooldowns, hysteresis, no bouncing back).
+- **Blind tag**: switches to the partner with the most stamina left for you, using claude-swap's own engine (cooldowns, hysteresis, no bouncing back). Off unless you turn it on.
 - **Roster**: sign the current login, bring in a new partner via `/login`, sign by contract (a `claude setup-token` token or API key, passed on stdin), ring names, bench, release.
 - **Status line** for Claude Code: `[IN] work · ▮▮▮▯▯ stamina 41% · endurance 79% · tonight 236M`.
 - **Export** of the match history as CSV or JSON.
@@ -124,6 +124,12 @@ tagteam statusline               # for Claude Code's statusLine setting
 - **Who was in the ring when.** Transcripts don't record the account, so Tag Team logs who was in the ring at every refresh and tag. Sessions started with `cswap run N` always count for partner N.
 - **Tags** go through claude-swap's JSON interface (`cswap list --json`, `cswap switch --json`, `cswap auto --once --json`), which handles the locking, keychain or credentials file, and token refresh.
 - **Purse** prices tokens at public API rates. It's an estimate of what the tokens would cost on the API, not what a Pro or Max plan charges.
+
+## Use it within Anthropic's terms
+
+Tag Team is for switching between Claude accounts you legitimately have, like a work account and a personal one. It never shares your login with anyone, proxies requests or resells access: it only changes which of your own logins Claude Code uses, on your machine.
+
+Don't sign up for extra accounts to get around usage limits. Anthropic's [Usage Policy](https://www.anthropic.com/legal/aup) prohibits bypassing restrictions built into its products and creating multiple accounts to avoid detection, and its [Consumer Terms](https://www.anthropic.com/legal/consumer-terms) let it suspend accounts that break the rules. You're responsible for how your accounts are used.
 
 ## Privacy and security
 
