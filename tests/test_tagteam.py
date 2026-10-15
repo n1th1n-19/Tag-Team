@@ -212,6 +212,53 @@ def test_ring_token_never_in_browser_argv():
     path.unlink()
 
 
+def test_update_check_compares_versions():
+    from tagteam import updater
+    assert updater.parse_version("v0.10.0") > updater.parse_version("0.9.9") > updater.parse_version("v0.9")
+    assert updater.parse_version("v1.2.3-rc1") == (1, 2, 3)
+    real = updater._get
+    try:
+        updater._get = lambda url, timeout=20: json.dumps({"tag_name": "v99.0.0", "html_url": "u"}).encode()
+        assert updater.check()["updateAvailable"]
+        updater._get = lambda url, timeout=20: json.dumps({"tag_name": "v0.0.1"}).encode()
+        res = updater.update()  # nothing newer: no download, no installer
+        assert not res["updateAvailable"] and "updated" not in res
+    finally:
+        updater._get = real
+    try:
+        updater._get("http://example.com/get.sh")
+        raise AssertionError("plain HTTP must be refused")
+    except accounts.CswapError:
+        pass
+
+
+def test_auto_update_job_on_and_off():
+    from tagteam import updater
+    calls = []
+
+    class Done:
+        returncode, stdout, stderr = 0, "", ""
+
+    real = updater.subprocess.run
+    with tempfile.TemporaryDirectory() as d:
+        _env(Path(d))
+        updater.subprocess.run = lambda cmd, **kw: calls.append(cmd) or Done()
+        try:
+            assert updater.auto_update_on()["enabled"]
+            if sys.platform.startswith("win"):
+                create = next(c for c in calls if "/Create" in c)
+                assert "WEEKLY" in create and "update --auto" in create[create.index("/TR") + 1]
+            else:
+                files = updater._job_files()
+                assert files and all(p.exists() for p in files)
+                assert b"--auto" in files[0].read_bytes()
+                assert updater.auto_update_status()["enabled"]
+                updater.auto_update_off()
+                assert not any(p.exists() for p in files) and not updater.auto_update_status()["enabled"]
+        finally:
+            updater.subprocess.run = real
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

@@ -213,6 +213,12 @@ def build_parser() -> argparse.ArgumentParser:
     cmd("state", "everything as JSON (what the ring draws)")
     cmd("statusline", "one line for Claude Code's statusLine setting")
     cmd("record", "note who's in the ring (hook helper)")
+    up = cmd("update", "install the newest Tag Team release (CLI, Claude Code plugin, editor extension)")
+    up.add_argument("--check", action="store_true", help="only say whether a newer release exists")
+    up.add_argument("--force", action="store_true", help="reinstall even if you're on the latest")
+    up.add_argument("--auto", action="store_true", help=argparse.SUPPRESS)
+    au = cmd("auto-update", "check for and install new releases once a week: on | off | status")
+    au.add_argument("action", nargs="?", default="status", choices=["on", "off", "status"])
     return p
 
 
@@ -304,6 +310,15 @@ def _dispatch(p, args, as_json: bool) -> int:
         if args.output:
             out.close()
             print(f"wrote {len(rows)} rows to {args.output}")
+    elif c == "update":
+        from tagteam import updater
+        if args.check:
+            emit(updater.check(), as_json)
+        else:
+            emit(updater.update(force=args.force, quiet=args.auto), as_json)
+    elif c == "auto-update":
+        from tagteam import updater
+        emit({"on": updater.auto_update_on, "off": updater.auto_update_off, "status": updater.auto_update_status}[args.action](), as_json)
     elif c == "tag-out-point":
         if args.percent is None:
             emit({"tagOutPoint": store.config()["threshold"]}, as_json)

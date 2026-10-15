@@ -24,6 +24,7 @@ remove_swap_me() {  # swap-me 0.1, the old name
 
 if [ "${1:-}" = "--uninstall" ]; then
   have tagteam && tagteam corner-man uninstall >/dev/null 2>&1 || true
+  have tagteam && tagteam auto-update off >/dev/null 2>&1 || true
   if have claude; then
     claude plugin uninstall tag-team@tag-team >/dev/null 2>&1 || true
     claude plugin marketplace remove tag-team >/dev/null 2>&1 || true
