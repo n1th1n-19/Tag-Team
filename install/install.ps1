@@ -20,7 +20,7 @@ function Remove-SwapMe {
 }
 
 if ($Uninstall) {
-  if (Have tagteam) { try { tagteam corner-man uninstall | Out-Null } catch {} }
+  if (Have tagteam) { try { tagteam corner-man uninstall | Out-Null } catch {}; try { tagteam auto-update off | Out-Null } catch {} }
   if (Have claude) { try { claude plugin uninstall tag-team@tag-team | Out-Null } catch {}; try { claude plugin marketplace remove tag-team | Out-Null } catch {} }
   if (Have uv) { try { uv tool uninstall tag-team | Out-Null } catch {} }
   foreach ($e in $Editors) { if (Have $e) { try { & $e --uninstall-extension n1th1n-19.tag-team | Out-Null } catch {} } }

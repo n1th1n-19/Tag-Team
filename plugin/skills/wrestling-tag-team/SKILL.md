@@ -27,3 +27,4 @@ Token totals count input + output + cache writes + cache reads. The purse is an 
 - `tagteam blind-tag on|off|status|preview`; `tagteam corner-man install` keeps it going with Claude Code closed.
 - `tagteam blind-tag set threshold 85`, `set strategy consume-first`, `set cooldownSeconds 600`.
 - `tagteam tag-out-point 85` sets when TAG ME appears.
+- `tagteam update` installs the newest release (`--check` only looks); `tagteam auto-update on|off|status` checks weekly. Ask before turning auto-update on.

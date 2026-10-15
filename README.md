@@ -58,7 +58,7 @@ irm https://github.com/n1th1n-19/tag-team/releases/latest/download/get.ps1 | iex
 $env:TAGTEAM_UNINSTALL=1; irm https://github.com/n1th1n-19/tag-team/releases/latest/download/get.ps1 | iex
 ```
 
-Pin a version with `TAGTEAM_VERSION=v0.3.0` in front of `bash` (or `$env:TAGTEAM_VERSION="v0.3.0"` on Windows). Prefer to read before you run? Download `get.sh` / `get.ps1` from the release, look at it, then run it.
+Pin a version with `TAGTEAM_VERSION=v0.4.0` in front of `bash` (or `$env:TAGTEAM_VERSION="v0.4.0"` on Windows). Prefer to read before you run? Download `get.sh` / `get.ps1` from the release, look at it, then run it.
 
 `SHA256SUMS.txt` catches a broken or swapped download, but it lives in the same release. To check that a file was built by this repo's GitHub Actions and not uploaded by hand, use [GitHub CLI](https://cli.github.com) 2.49 or newer (releases from v0.2.2 on):
 
@@ -95,6 +95,12 @@ Uninstall: the one-liner above, or `./install/install.sh --uninstall` (`install.
 2. Bring in a partner: run `/login` in Claude Code, log in to the other account, then `tagteam sign --ring-name personal`
 3. Open the ring: `/tag-team` in Claude Code, click `[IN]` in your editor's status bar, or `tagteam ring` for the browser.
 
+## Updates
+
+`tagteam update` installs the newest release: the `tagteam` command, the Claude Code plugin and the editor extension, all at the same version. It downloads that release's installer from GitHub, which checks the zip against `SHA256SUMS.txt` before installing anything, exactly like the one-liner. `tagteam update --check` only tells you whether there's a newer release.
+
+`tagteam auto-update on` does that for you once a week (a systemd user timer on Linux, a LaunchAgent on macOS, a Task Scheduler task on Windows); it installs only when there's a newer release. `tagteam auto-update off` stops it, and uninstalling removes it. Auto-update is off unless you turn it on. On Windows the update finishes in its own window, since `tagteam.exe` can't replace itself while it's running.
+
 ## Commands
 
 Claude Code: `/tag-team` (the ring) · `/tag-in [N|ring name|best]` · `/tag-out` (hot tag) · `/roster` (ring card in the chat) · `/blind-tag on|off|preview|status`. Fallbacks for older Claude Code: `/tag-team:ring-card`, `/tag-team:tag-in`, `/tag-team:ring`, `/tag-team:sign`. You can also just ask Claude ("who's got the most stamina?", "tag me out"); the bundled skill knows the moves.
@@ -114,6 +120,8 @@ tagteam tag-out-point 85         # when TAG ME appears
 tagteam ring                     # the ring in your browser (127.0.0.1)
 tagteam rules                    # the glossary
 tagteam export --csv -o history.csv
+tagteam update                   # install the newest release (--check to just look)
+tagteam auto-update on           # check once a week and install new releases
 tagteam statusline               # for Claude Code's statusLine setting
 ```
 
@@ -133,7 +141,7 @@ Our advice: don't sign up for extra accounts to get around usage limits. Anthrop
 
 ## Privacy and security
 
-- Your match history stays on your machine; Tag Team makes no network calls of its own (claude-swap calls Anthropic's usage endpoint as it always does).
+- Your match history stays on your machine. Tag Team's only network call is to GitHub's releases API, and only when you run `tagteam update` or turn on auto-update (claude-swap calls Anthropic's usage endpoint as it always does).
 - The browser ring listens on 127.0.0.1 only and every API call needs a random per-run token (in the URL fragment, never sent as part of a URL) plus a localhost Host header.
 - Contracts (tokens) go to claude-swap on stdin, never on a command line.
 - Files in `~/.tag-team` are owner-only (0600).
