@@ -11,6 +11,43 @@ have() { command -v "$1" >/dev/null 2>&1; }
 # uv and tagteam live here; a shell opened before the install doesn't have it on PATH yet.
 export PATH="$HOME/.local/bin:$PATH"
 
+# Progress: one animated line per step on a terminal, plain lines otherwise; each step's output goes to $LOG.
+LOG="$(mktemp "${TMPDIR:-/tmp}/tag-team-install.XXXXXX")"
+STEP=0
+STEPS=1
+TTY=0
+if [ -t 1 ] && [ "${TERM:-dumb}" != dumb ]; then TTY=1; fi
+bar() {
+  local i out=""
+  for ((i = 1; i <= STEPS; i++)); do if [ "$i" -le "$STEP" ]; then out="$out■"; else out="$out□"; fi; done
+  printf '[%s] %d/%d' "$out" "$STEP" "$STEPS"
+}
+fail() { say "$1 failed. The last lines of $LOG:"; tail -n 15 "$LOG" >&2; exit 1; }
+step() {  # step "label" command...
+  local label="$1"
+  shift
+  STEP=$((STEP + 1))
+  if [ "$TTY" = 0 ]; then
+    say "$(bar) $label"
+    "$@" >>"$LOG" 2>&1 || fail "$label"
+    return 0
+  fi
+  "$@" >>"$LOG" 2>&1 &
+  local pid=$! k=0
+  local frames=("▱▱▱▱▱" "▰▱▱▱▱" "▰▰▱▱▱" "▰▰▰▱▱" "▰▰▰▰▱" "▰▰▰▰▰")
+  while kill -0 "$pid" 2>/dev/null; do
+    printf '\r\033[K\033[1;33m%s\033[0m %s %s' "$(bar)" "${frames[$((k % 6))]}" "$label"
+    k=$((k + 1))
+    sleep 0.12
+  done
+  if wait "$pid"; then
+    printf '\r\033[K\033[1;33m%s\033[0m \033[1;32m✓\033[0m %s\n' "$(bar)" "$label"
+  else
+    printf '\r\033[K\033[1;33m%s\033[0m \033[1;31m✗\033[0m %s\n' "$(bar)" "$label"
+    fail "$label"
+  fi
+}
+
 remove_swap_me() {  # swap-me 0.1, the old name
   have swapme && swapme auto service uninstall >/dev/null 2>&1 || true
   if have claude; then
@@ -59,7 +96,6 @@ install_uv() {
   esac
   tmp="$(mktemp -d)"
   trap 'rm -rf "$tmp"' RETURN
-  say "Installing uv $UV_VERSION ($target), verified by SHA-256"
   local url="https://github.com/astral-sh/uv/releases/download/$UV_VERSION/uv-$target.tar.gz"
   if have curl; then curl --proto '=https' --tlsv1.2 -fsSL "$url" -o "$tmp/uv.tar.gz"
   elif have wget; then wget --https-only -qO "$tmp/uv.tar.gz" "$url"
@@ -72,47 +108,57 @@ install_uv() {
   install -m 0755 "$tmp/uv-$target/uv" "$tmp/uv-$target/uvx" "$HOME/.local/bin/"
   export PATH="$HOME/.local/bin:$PATH"
 }
-have uv || install_uv
+# 2-3. Old name out (its history in ~/.swap-me moves to ~/.tag-team the first time tagteam runs), then a
+# stable copy of the app, so deleting the downloaded folder doesn't break the plugin.
+setup_ring() {
+  remove_swap_me
+  mkdir -p "$APP"
+  if [ "$SRC" != "$APP" ]; then
+    rm -rf "$APP.new" && mkdir -p "$APP.new"
+    (cd "$SRC" && tar --exclude=.git --exclude='dist/*.zip' --exclude='__pycache__' --exclude=.remember -cf - .) | (cd "$APP.new" && tar -xf -)
+    rm -rf "$APP" && mv "$APP.new" "$APP"
+  fi
+}
 
-# 2. Old name out. Its history (~/.swap-me) moves to ~/.tag-team the first time tagteam runs.
-remove_swap_me
-
-# 3. Stable copy, so deleting the downloaded folder doesn't break the plugin.
-say "Setting up the ring in $APP"
-mkdir -p "$APP"
-if [ "$SRC" != "$APP" ]; then
-  rm -rf "$APP.new" && mkdir -p "$APP.new"
-  (cd "$SRC" && tar --exclude=.git --exclude='dist/*.zip' --exclude='__pycache__' --exclude=.remember -cf - .) | (cd "$APP.new" && tar -xf -)
-  rm -rf "$APP" && mv "$APP.new" "$APP"
-fi
-
-# 4. claude-swap (cswap) and tagteam on PATH.
-say "Signing claude-swap and tagteam"
-uv tool install --upgrade claude-swap >/dev/null 2>&1 || uv tool install claude-swap
-uv tool install --force --python 3.12 "$APP"
-uv tool update-shell >/dev/null 2>&1 || true
-# Move swap-me's history now (any tagteam command that reads ~/.tag-team does it).
-TAGTEAM="$(command -v tagteam || echo "$HOME/.local/bin/tagteam")"
-"$TAGTEAM" tag-out-point >/dev/null 2>&1 || true
+# 4. claude-swap (cswap) and tagteam on PATH; then move swap-me's history (any tagteam command that reads ~/.tag-team does it).
+sign_tools() {
+  uv tool install --upgrade claude-swap || uv tool install claude-swap
+  uv tool install --force --python 3.12 "$APP"
+  uv tool update-shell || true
+  "$(command -v tagteam || echo "$HOME/.local/bin/tagteam")" tag-out-point || true
+}
 
 # 5. The Claude Code plugin.
-if have claude; then
-  say "Bringing the tag-team plugin to Claude Code"
-  claude plugin marketplace remove tag-team >/dev/null 2>&1 || true
+add_plugin() {
+  claude plugin marketplace remove tag-team || true
   claude plugin marketplace add "$APP"
   claude plugin install tag-team@tag-team
-else
-  say "Claude Code not found. Install it, then run: claude plugin marketplace add \"$APP\" && claude plugin install tag-team@tag-team"
-fi
+}
 
 # 6. Editor extension: status bar, TAG ME, the ring (VS Code, VSCodium, Cursor).
+add_extension() { "$1" --install-extension "$VSIX" --force; }
+
 VSIX="$APP/dist/tag-team.vsix"
-if [ ! -f "$VSIX" ] && have npx; then (cd "$APP" && python3 scripts/package.py >/dev/null 2>&1) || true; fi
-if [ -f "$VSIX" ]; then
-  for editor in code codium cursor; do
-    if have "$editor"; then say "Adding the Tag Team extension to $editor"; "$editor" --install-extension "$VSIX" --force >/dev/null || true; fi
-  done
+[ -f "$SRC/dist/tag-team.vsix" ] && VSIX_SRC="$SRC/dist/tag-team.vsix" || VSIX_SRC=""
+EDITORS=""
+for editor in code codium cursor; do if have "$editor"; then EDITORS="$EDITORS $editor"; fi; done
+STEPS=2
+have uv || STEPS=$((STEPS + 1))
+have claude && STEPS=$((STEPS + 1))
+if [ -n "$VSIX_SRC" ] || have npx; then for editor in $EDITORS; do STEPS=$((STEPS + 1)); done; fi
+
+have uv || step "Getting uv $UV_VERSION (checksum-verified)" install_uv
+step "Setting up the ring" setup_ring
+step "Installing claude-swap and tagteam" sign_tools
+if have claude; then
+  step "Bringing the tag-team plugin to Claude Code" add_plugin
 fi
+if [ ! -f "$VSIX" ] && have npx; then (cd "$APP" && python3 scripts/package.py >>"$LOG" 2>&1) || true; fi
+if [ -f "$VSIX" ]; then
+  for editor in $EDITORS; do step "Adding the Tag Team extension to $editor" add_extension "$editor"; done
+fi
+have claude || say "Claude Code not found. Install it, then run: claude plugin marketplace add \"$APP\" && claude plugin install tag-team@tag-team"
+rm -f "$LOG"
 
 cat <<MSG
 

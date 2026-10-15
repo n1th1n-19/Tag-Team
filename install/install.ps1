@@ -37,13 +37,13 @@ $UvBuilds = @{
   "ARM64" = @("aarch64-pc-windows-msvc", "1efb2654b06e7063d4ac1fc9d49a9bda9a6704d82f035b589a2751a592f14151")
 }
 function Install-Uv {
+  $ProgressPreference = "SilentlyContinue"
   $arch = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
   if (-not $UvBuilds.ContainsKey($arch)) { throw "No pinned uv build for $arch. Install uv yourself (https://docs.astral.sh/uv/), then re-run." }
   $target, $sha = $UvBuilds[$arch]
   $tmp = Join-Path ([IO.Path]::GetTempPath()) ("uv-" + [guid]::NewGuid())
   New-Item -ItemType Directory -Path $tmp | Out-Null
   try {
-    Say "Installing uv $UvVersion ($target), verified by SHA-256"
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     $zip = Join-Path $tmp "uv.zip"
     Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/astral-sh/uv/releases/download/$UvVersion/uv-$target.zip" -OutFile $zip
@@ -60,11 +60,22 @@ function Install-Uv {
     Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
   }
 }
-if (-not (Have uv)) { Install-Uv }
+# Progress: the native progress bar plus one line per step.
+$script:StepN = 0
+$HasVsix = Test-Path (Join-Path $Src "dist\tag-team.vsix")
+$script:StepTotal = 2 + [int](-not (Have uv)) + [int](Have claude) + [int]$HasVsix * @($Editors | Where-Object { Have $_ }).Count
+function Step($label) {
+  $script:StepN++
+  Write-Progress -Activity "Tag Team Wrestling" -Status "Step $($script:StepN) of $($script:StepTotal): $label" -PercentComplete ([int](100 * ($script:StepN - 1) / $script:StepTotal))
+  $bar = ("#" * $script:StepN) + ("-" * ($script:StepTotal - $script:StepN))
+  Write-Host "[$bar] $($script:StepN)/$($script:StepTotal) $label" -ForegroundColor Yellow
+}
+
+if (-not (Have uv)) { Step "Getting uv $UvVersion (checksum-verified)"; Install-Uv }
 
 Remove-SwapMe
 
-Say "Setting up the ring in $App"
+Step "Setting up the ring"
 if ((Resolve-Path $Src).Path -ne $App) {
   Remove-Item -Recurse -Force $App -ErrorAction SilentlyContinue
   New-Item -ItemType Directory -Force -Path $App | Out-Null
@@ -73,7 +84,7 @@ if ((Resolve-Path $Src).Path -ne $App) {
   Get-ChildItem (Join-Path $App "dist") -Filter *.zip -ErrorAction SilentlyContinue | Remove-Item -Force
 }
 
-Say "Signing claude-swap and tagteam"
+Step "Installing claude-swap and tagteam"
 try { uv tool install --upgrade claude-swap } catch { uv tool install claude-swap }
 uv tool install --force --python 3.12 $App
 try { uv tool update-shell | Out-Null } catch {}
@@ -81,7 +92,7 @@ try { uv tool update-shell | Out-Null } catch {}
 try { & (Join-Path $env:USERPROFILE ".local\bin\tagteam.exe") tag-out-point | Out-Null } catch {}
 
 if (Have claude) {
-  Say "Bringing the tag-team plugin to Claude Code"
+  Step "Bringing the tag-team plugin to Claude Code"
   try { claude plugin marketplace remove tag-team | Out-Null } catch {}
   claude plugin marketplace add $App
   claude plugin install tag-team@tag-team
@@ -91,9 +102,10 @@ if (Have claude) {
 
 $Vsix = Join-Path $App "dist\tag-team.vsix"
 if (Test-Path $Vsix) {
-  foreach ($e in $Editors) { if (Have $e) { Say "Adding the Tag Team extension to $e"; try { & $e --install-extension $Vsix --force | Out-Null } catch {} } }
+  foreach ($e in $Editors) { if (Have $e) { Step "Adding the Tag Team extension to $e"; try { & $e --install-extension $Vsix --force | Out-Null } catch {} } }
 }
 
+Write-Progress -Activity "Tag Team Wrestling" -Completed
 Write-Host @"
 
 TAG TEAM WRESTLING is in the building.
