@@ -21,7 +21,7 @@ Built on [claude-swap](https://github.com/realiti4/claude-swap) (`cswap`). Works
 | **Down for the count / K.O.** | a limit is used up (100%) |
 | **TAG ME** | the button that appears when you're worn down: one press tags in the freshest partner |
 | **Tag in / tag out / hot tag** | switch to a partner / hand off / tag the partner with the most stamina left |
-| **Blind tag** | switches automatically to the partner with the most stamina left (off unless you turn it on); the **corner man** keeps it running with Claude Code closed |
+| **Blind tag** | switches automatically to another partner, by default the one with the most stamina left, or the one whose weekly limit resets soonest if you choose that (off unless you turn it on); the **corner man** keeps it running with Claude Code closed |
 | **Roster, sign, ring name, bench, release** | your accounts, adding one, its alias, leaving it out of blind tags, removing it |
 | **Match history** | a year of daily token use, GitHub-style; **career** totals, **purse** (API-price estimate), **show streak**, **main event** |
 | **Before the bell** | usage from before Tag Team started keeping score |
@@ -35,7 +35,7 @@ Built on [claude-swap](https://github.com/realiti4/claude-swap) (`cswap`). Works
   - *Editors*: the status bar `[IN] work ▮▮▮▯▯ 41%` turns into a red **TAG ME** button (one click tags out), with a notification offering *TAG ME > partner*, *Hot tag: best* and *Open the ring*.
   - *Claude Code terminal*: a **REACH FOR THE TAG!** bar above the prompt with a TAG ME button.
   - *Claude Code chat in editors*: `/tag-team` replies with the roster and the `/tag-out` hint. Editor chat panels can't show plugin buttons, so the button lives in the extension's status bar.
-- **Blind tag**: switches to the partner with the most stamina left for you, using claude-swap's own engine (cooldowns, hysteresis, no bouncing back). Off unless you turn it on.
+- **Blind tag**: switches partners for you using claude-swap's own engine (cooldowns, hysteresis, no bouncing back). By default it picks the partner with the most stamina left; you can choose the one whose weekly limit resets soonest instead. Off unless you turn it on.
 - **Roster**: sign the current login, bring in a new partner via `/login`, sign by contract (a `claude setup-token` token or API key, passed on stdin), ring names, bench, release.
 - **Status line** for Claude Code: `[IN] work · ▮▮▮▯▯ stamina 41% · endurance 79% · tonight 236M`.
 - **Export** of the match history as CSV or JSON.
@@ -129,7 +129,7 @@ tagteam statusline               # for Claude Code's statusLine setting
 
 Tag Team is for switching between Claude accounts you legitimately have, like a work account and a personal one. It never shares your login with anyone, proxies requests or resells access: it only changes which of your own logins Claude Code uses, on your machine.
 
-Don't sign up for extra accounts to get around usage limits. Anthropic's [Usage Policy](https://www.anthropic.com/legal/aup) prohibits bypassing restrictions built into its products and creating multiple accounts to avoid detection, and its [Consumer Terms](https://www.anthropic.com/legal/consumer-terms) let it suspend accounts that break the rules. You're responsible for how your accounts are used.
+Our advice: don't sign up for extra accounts to get around usage limits. Anthropic's [Usage Policy](https://www.anthropic.com/legal/aup) restricts using multiple accounts to avoid detection or to get around its guardrails, and its [Consumer Terms](https://www.anthropic.com/legal/consumer-terms) let it suspend accounts it believes break the rules. Read them yourself; you're responsible for how your accounts are used.
 
 ## Privacy and security
 
