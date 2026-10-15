@@ -1,0 +1,136 @@
+# Tag Team Wrestling
+
+**Your Claude accounts are a tag team.** In tag-team wrestling, partners share one match: one fights in the ring, the others wait on the apron, and when the one inside is worn down they slap hands and tag a fresh partner in. Tag Team Wrestling does that for Claude Code. It shows each account's **stamina** (5-hour limit) and **endurance** (weekly limit), keeps a retro **match history** of your token use, and puts up a **TAG ME** button so you can switch accounts before one runs out.
+
+Built on [claude-swap](https://github.com/realiti4/claude-swap) (`cswap`). Works in the Claude Code terminal, in VS Code / VSCodium / Cursor, and in your browser.
+
+![The ring: TAG ME banner, career score, partners with life bars, match history](docs/ring.png)
+
+## How the match works
+
+| In the ring | What it means |
+|---|---|
+| **In the ring** | the account Claude Code is using right now (the "legal partner") |
+| **On the apron** | your other signed accounts, waiting for a tag |
+| **Stamina / endurance** | the 5-hour and weekly usage limits, drawn as fighting-game life bars that drain |
+| **Worn down** | stamina used past your **tag-out point** (90% by default) |
+| **Down for the count / K.O.** | a limit is used up (100%) |
+| **TAG ME** | the button that appears when you're worn down: one press tags in the freshest partner |
+| **Tag in / tag out / hot tag** | switch to a partner / hand off / tag the partner with the most stamina left |
+| **Blind tag** | automatic tagging before anyone's worn down; the **corner man** keeps it running with Claude Code closed |
+| **Roster, sign, ring name, bench, release** | your accounts, adding one, its alias, leaving it out of blind tags, removing it |
+| **Match history** | a year of daily token use, GitHub-style; **career** totals, **purse** (API-price estimate), **show streak**, **main event** |
+| **Before the bell** | usage from before Tag Team started keeping score |
+
+`tagteam rules` prints this glossary any time.
+
+## What you get
+
+- **The ring** (retro pixel-art dashboard): the mascot on an attract screen, an arcade **score** of your career tokens, every partner as a character-select card with stamina and endurance life bars and a K.O. stamp, a year of match history (cold → hot), high scores by month, your moveset (models) and venues (projects), and matches in progress.
+- **TAG ME**, wherever you are:
+  - *Editors*: the status bar `[IN] work ▮▮▮▯▯ 41%` turns into a red **TAG ME** button (one click tags out), with a notification offering *TAG ME > partner*, *Hot tag: best* and *Open the ring*.
+  - *Claude Code terminal*: a **REACH FOR THE TAG!** bar above the prompt with a TAG ME button.
+  - *Claude Code chat in editors*: `/tag-team` replies with the roster and the `/tag-out` hint. Editor chat panels can't show plugin buttons, so the button lives in the extension's status bar.
+- **Blind tag**: switches for you, using claude-swap's own engine (cooldowns, hysteresis, no bouncing back).
+- **Roster**: sign the current login, bring in a new partner via `/login`, sign by contract (a `claude setup-token` token or API key, passed on stdin), ring names, bench, release.
+- **Status line** for Claude Code: `[IN] work · ▮▮▮▯▯ stamina 41% · endurance 79% · tonight 236M`.
+- **Export** of the match history as CSV or JSON.
+
+## Download and install
+
+You need [Claude Code](https://claude.com/claude-code). The installer sets up everything else: uv, Python 3.12, claude-swap, the `tagteam` command, the Claude Code plugin, and the editor extension for any VS Code, VSCodium or Cursor it finds.
+
+| System | Download | Install |
+|---|---|---|
+| macOS | [tag-team-macos.zip](https://github.com/n1th1n-19/tag-team/releases/latest/download/tag-team-macos.zip) | unzip, then `./install/install.sh` |
+| Linux | [tag-team-linux.zip](https://github.com/n1th1n-19/tag-team/releases/latest/download/tag-team-linux.zip) | unzip, then `./install/install.sh` |
+| Windows | [tag-team-windows.zip](https://github.com/n1th1n-19/tag-team/releases/latest/download/tag-team-windows.zip) | unzip, then `powershell -ExecutionPolicy Bypass -File install\install.ps1` |
+| Editor only | [tag-team.vsix](https://github.com/n1th1n-19/tag-team/releases/latest/download/tag-team.vsix) | *Extensions: Install from VSIX…* (needs `tagteam` installed) |
+
+From source: `git clone https://github.com/n1th1n-19/tag-team && cd tag-team && ./install/install.sh`.
+Plugin only, at a Claude Code prompt: `/plugin install tag-team --marketplace n1th1n-19/tag-team`.
+
+**Coming from swap-me?** The installer removes swap-me (command, plugin, extension, service) and your history in `~/.swap-me` moves to `~/.tag-team` the first time `tagteam` runs. `swapme` still works for this version and points you to `tagteam`.
+
+Uninstall: `./install/install.sh --uninstall` (or `install.ps1 -Uninstall`). Your match history in `~/.tag-team` is kept.
+
+## First match
+
+1. Sign the account you're logged in as: `tagteam sign --ring-name work`
+2. Bring in a partner: run `/login` in Claude Code, log in to the other account, then `tagteam sign --ring-name personal`
+3. Open the ring: `/tag-team` in Claude Code, click `[IN]` in your editor's status bar, or `tagteam ring` for the browser.
+
+## Commands
+
+Claude Code: `/tag-team` (the ring) · `/tag-in [N|ring name|best]` · `/tag-out` (hot tag) · `/roster` (ring card in the chat) · `/blind-tag on|off|preview|status`. Fallbacks for older Claude Code: `/tag-team:ring-card`, `/tag-team:tag-in`, `/tag-team:ring`, `/tag-team:sign`. You can also just ask Claude ("who's got the most stamina?", "tag me out"); the bundled skill knows the moves.
+
+Terminal:
+
+```bash
+tagteam                          # ring card: mascot, score, roster with life bars, match history
+tagteam tag-in work              # tag a partner in (number, ring name, email, or best)
+tagteam tag-out                  # hot tag to the freshest partner
+tagteam roster
+tagteam sign --ring-name work    # sign the current login; --contract signs a token (read from stdin)
+tagteam ring-name 2 work | bench 2 | unbench 2 | release 2
+tagteam blind-tag on|off|status|preview|set threshold 85
+tagteam corner-man install       # keep blind-tagging with Claude Code closed
+tagteam tag-out-point 85         # when TAG ME appears
+tagteam ring                     # the ring in your browser (127.0.0.1)
+tagteam rules                    # the glossary
+tagteam export --csv -o history.csv
+tagteam statusline               # for Claude Code's statusLine setting
+```
+
+## How it works
+
+- **Tokens** come from Claude Code's own transcripts (`~/.claude/projects/**/*.jsonl`): each assistant message carries its usage. Tag Team counts each message once and adds them up by night, partner and model, reading only new lines each refresh.
+- **Career totals survive cleanup.** Claude Code deletes old transcripts; Tag Team keeps a daily ledger in `~/.tag-team/ledger.json`.
+- **Who was in the ring when.** Transcripts don't record the account, so Tag Team logs who was in the ring at every refresh and tag. Sessions started with `cswap run N` always count for partner N.
+- **Tags** go through claude-swap's JSON interface (`cswap list --json`, `cswap switch --json`, `cswap auto --once --json`), which handles the locking, keychain or credentials file, and token refresh.
+- **Purse** prices tokens at public API rates. It's an estimate of what the tokens would cost on the API, not what a Pro or Max plan charges.
+
+## Privacy and security
+
+- Your match history stays on your machine; Tag Team makes no network calls of its own (claude-swap calls Anthropic's usage endpoint as it always does).
+- The browser ring listens on 127.0.0.1 only and every API call needs a random per-run token (in the URL fragment, never sent as part of a URL) plus a localhost Host header.
+- Contracts (tokens) go to claude-swap on stdin, never on a command line.
+- Files in `~/.tag-team` are owner-only (0600).
+
+## Design
+
+The mascot (two Claude-style critters tag-teaming, one in red trunks, one in blue) was drawn in Figma: [Tag Team Wrestling: mascot](https://www.figma.com/design/R7exq8p1eMzkr0end2nxf1). Every pixel is a 1×1 rectangle on a 32×32 grid with palette color styles; the frames are `mascot/icon`, `mascot/slap-1..4` (the tag animation), `ring` and `belt`.
+
+`tagteam/web/mascot.js` is the export (one character per pixel) and the only copy the code uses: the ring page, the editor extension icon (`art.png`), the terminal banner (`art.banner`) and the plugin all read it. To change the art, edit it in Figma and re-run the export (a read-only `use_figma` script that walks each frame's rectangles and returns `{palette, frames}`), then paste the result into `mascot.js`.
+
+Fonts: [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P) and [VT323](https://fonts.google.com/specimen/VT323), both under the SIL Open Font License (`tagteam/web/fonts/OFL-*.txt`), bundled so the ring works offline.
+
+Tag Team uses generic wrestling words. It isn't affiliated with any wrestling company or with Anthropic, and the mascot is fan art of Claude's mascot.
+
+## Project layout
+
+```
+tagteam/           Python package (stdlib only): transcript scanner, ledger, cswap wrapper, CLI, art, the ring server
+tagteam/web/       the ring (one HTML file), mascot.js (Figma export), pixel fonts
+plugin/            Claude Code plugin: the ring pane, TAG ME band, status line, commands, skill
+vscode/            VS Code / VSCodium extension: [IN] / TAG ME status bar, notifications, the ring panel
+install/           installers for macOS/Linux (install.sh) and Windows (install.ps1)
+scripts/package.py builds tag-team.vsix and the three release zips
+docs/              the download page
+tests/             Python tests; plugin/tests: plugin tests (claude plugin test plugin)
+```
+
+## Develop
+
+```bash
+uv run --with claude-swap python tests/test_tagteam.py
+claude plugin validate plugin && claude plugin test plugin
+claude --plugin-dir plugin     # Claude Code with your working copy of the plugin
+python scripts/package.py      # tag-team.vsix (needs Node) + the three release zips
+```
+
+Releases: push a tag like `v0.2.0`; GitHub Actions runs the tests, builds the zips and the vsix, and attaches them to the release.
+
+## License
+
+MIT. Fonts: SIL Open Font License 1.1.

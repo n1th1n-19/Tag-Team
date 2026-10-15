@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tag Team Wrestling</title>
+<link rel="icon" href="/favicon.png">
+<style>
+/*@FONTS@*/
+:root {
+  --bg: #1b1d2b; --bg2: #232638; --panel: #2a2d40; --ink: #f4f1e8; --muted: #a9a6b8; --line: #0e0f17;
+  --gold: #f2c14e; --gold2: #c9952e; --red: #d94141; --red2: #a82f2f; --blue: #3f6fd1; --blue2: #2c4f9c;
+  --green: #5fc25a; --orange: #f0913a; --mat: #e8e3d3; --shadow: #0e0f17; --focus: #f2c14e; --hi: #f2c14e;
+  --h0: #3b3f52; --h1: #6b3a3a; --h2: #a83a3a; --h3: #d94141; --h4: #f2c14e;
+  --display: "Press Start 2P", ui-monospace, monospace; --body: "VT323", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {
+  --bg: #e8e3d3; --bg2: #ddd7c3; --panel: #f4f1e8; --ink: #1b1d2b; --muted: #5a5f73; --line: #1b1d2b;
+  --shadow: #1b1d2b; --h0: #cfc8b2; --h1: #e8a99a; --h2: #d9796b; --h3: #d94141; --h4: #c9952e; --focus: #3f6fd1; --hi: #8a5a0a; --green: #2e8a2a;
+}}
+:root[data-theme="light"] {
+  --bg: #e8e3d3; --bg2: #ddd7c3; --panel: #f4f1e8; --ink: #1b1d2b; --muted: #5a5f73; --line: #1b1d2b;
+  --shadow: #1b1d2b; --h0: #cfc8b2; --h1: #e8a99a; --h2: #d9796b; --h3: #d94141; --h4: #c9952e; --focus: #3f6fd1; --hi: #8a5a0a; --green: #2e8a2a;
+}
+* { box-sizing: border-box; border-radius: 0 !important; }
+html { image-rendering: pixelated; }
+body {
+  margin: 0; color: var(--ink); font: 22px/1.15 var(--body); background-color: var(--bg);
+  /* ordered-dither canvas: no gradients in a retro ring */
+  background-image: radial-gradient(var(--bg2) 1px, transparent 1px); background-size: 4px 4px;
+}
+body.crt::after { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 50;
+  background: repeating-linear-gradient(to bottom, rgba(0,0,0,.14) 0 1px, transparent 1px 3px); }
+main { max-width: 1180px; margin: 0 auto; padding: 18px 16px 56px; }
+svg { display: block; image-rendering: pixelated; }
+h1, h2, .display { font-family: var(--display); font-weight: 400; letter-spacing: 0; margin: 0; }
+h2 { font-size: 12px; line-height: 1.6; margin-bottom: 12px; color: var(--hi); }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.muted { color: var(--muted); }
+.box { background: var(--panel); border: 3px solid var(--line); box-shadow: 4px 4px 0 var(--shadow); padding: 16px; }
+
+button {
+  font: 10px/1.4 var(--display); cursor: pointer; color: var(--ink); background: var(--bg2);
+  border: 3px solid var(--line); box-shadow: 3px 3px 0 var(--shadow); padding: 8px 10px; text-transform: uppercase;
+}
+button:hover { background: var(--panel); }
+button:active { transform: translate(3px, 3px); box-shadow: none; }
+button.go { background: var(--gold); color: #1b1d2b; }
+button.hot { background: var(--red); color: #fff; }
+button:disabled { opacity: .5; cursor: progress; }
+input, select { font: 20px var(--body); color: var(--ink); background: var(--bg); border: 3px solid var(--line); padding: 4px 8px; }
+
+/* attract screen */
+.attract { display: grid; grid-template-columns: auto 1fr auto; gap: 18px; align-items: center; margin-bottom: 18px; }
+.attract h1 { font-size: clamp(16px, 3vw, 26px); line-height: 1.35; color: var(--hi); text-shadow: 3px 3px 0 var(--red2); }
+.attract .sub { font-size: 24px; color: var(--muted); }
+.attract .who { font-size: 24px; margin-top: 6px; }
+.blink { animation: blink 1s steps(2, start) infinite; }
+@keyframes blink { to { visibility: hidden; } }
+nav.tabs { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+nav.tabs button[aria-selected="true"] { background: var(--gold); color: #1b1d2b; }
+
+/* TAG ME */
+.tagme { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; padding: 14px 16px;
+  background: var(--red); color: #fff; border: 3px solid var(--line); box-shadow: 4px 4px 0 var(--shadow); }
+.tagme.ko { background: var(--red2); }
+.tagme .grow { flex: 1; min-width: 220px; }
+.tagme .big { font: 14px/1.6 var(--display); }
+.tagme.flash { animation: flash .9s steps(2, start) 3; }
+@keyframes flash { to { background: var(--orange); } }
+.note { padding: 10px 14px; margin-bottom: 12px; border: 3px solid var(--line); background: var(--panel); box-shadow: 4px 4px 0 var(--shadow); }
+
+/* score */
+.score { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; margin-bottom: 18px; }
+.score .digits { font: clamp(18px, 4vw, 36px)/1.2 var(--display); color: var(--hi); text-shadow: 3px 3px 0 var(--red2); letter-spacing: 1px; }
+.stats { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 22px; margin-top: 8px; }
+.stats b { font-weight: 400; color: var(--hi); }
+
+/* character select */
+.select { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; margin-bottom: 18px; }
+.card { position: relative; display: grid; grid-template-columns: 56px 1fr; gap: 12px; padding: 12px; background: var(--panel);
+  border: 3px solid var(--line); box-shadow: 4px 4px 0 var(--shadow); }
+.card.in { border-color: var(--gold); box-shadow: 4px 4px 0 var(--gold2); }
+.card.worn { border-color: var(--orange); }
+.card.bench { opacity: .65; }
+.card .name { font: 11px/1.5 var(--display); }
+.card .tag { font: 9px/1.5 var(--display); color: var(--hi); white-space: nowrap; }
+.card .email { font-size: 19px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card .portrait { width: 56px; height: 56px; display: grid; place-items: end center; background: var(--bg2); border: 3px solid var(--line); overflow: hidden; }
+.card .actions { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.card .ko { position: absolute; top: 10px; right: 10px; font: 12px var(--display); color: #fff; background: var(--red); padding: 4px 6px; transform: rotate(-8deg); border: 3px solid var(--line); }
+.life { display: grid; grid-template-columns: 82px 1fr 54px; gap: 6px; align-items: center; font-size: 19px; }
+.life .bar { display: grid; grid-template-columns: repeat(20, 1fr); gap: 1px; height: 12px; background: var(--line); border: 2px solid var(--line); }
+.life .bar i { background: var(--bg2); }
+.life .bar i.on { background: var(--green); } .life .bar.mid i.on { background: var(--orange); } .life .bar.low i.on { background: var(--red); }
+.life .bar.worn { animation: worn 1s steps(2, start) infinite; }
+@keyframes worn { to { opacity: .35; } }
+.cursor { color: var(--hi); }
+
+/* match history */
+.history .head { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 10px; }
+.history .head .grow { flex: 1; }
+.history svg { width: 100%; height: auto; min-width: 640px; }
+.history svg text { fill: var(--muted); font-family: var(--body); font-size: 9px; }
+.history rect.day { cursor: pointer; }
+.history rect.sel { stroke: var(--gold); stroke-width: 1.2; }
+.scroll { overflow-x: auto; }
+.legend { display: inline-flex; gap: 3px; align-items: center; font-size: 19px; }
+.legend i { width: 12px; height: 12px; display: inline-block; border: 1px solid var(--line); }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+table { width: 100%; border-collapse: collapse; font-size: 20px; }
+td, th { padding: 3px 4px; text-align: left; font-weight: 400; }
+th { font: 9px/1.6 var(--display); color: var(--muted); border-bottom: 3px solid var(--line); }
+tr:nth-child(even) td { background: color-mix(in srgb, var(--bg2) 60%, transparent); }
+td.n, th.n { text-align: right; }
+.rank { color: var(--hi); }
+
+/* roster + blind tag */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 22px; }
+.steps .ok { color: var(--green); } .steps .todo { color: var(--orange); }
+form.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+form.row input { flex: 1; min-width: 160px; }
+.settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-top: 14px; }
+.settings label { display: grid; gap: 4px; font-size: 19px; color: var(--muted); }
+.switch { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+pre.rules { white-space: pre-wrap; font: 21px/1.2 var(--body); margin: 0; }
+
+/* TAG! pop */
+#pop { position: fixed; inset: 0; display: none; place-items: center; z-index: 60; pointer-events: none; }
+#pop.show { display: grid; }
+#pop .burst { display: grid; justify-items: center; gap: 10px; background: var(--panel); border: 4px solid var(--line); box-shadow: 6px 6px 0 var(--shadow); padding: 16px 22px; }
+#pop .word { font: 28px var(--display); color: var(--hi); text-shadow: 3px 3px 0 var(--red2); }
+#toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 32px); display: none; z-index: 70;
+  font-size: 22px; background: var(--ink); color: var(--bg); border: 3px solid var(--line); box-shadow: 4px 4px 0 var(--shadow); padding: 8px 14px; }
+footer { margin-top: 26px; font-size: 19px; color: var(--muted); }
+.hidden { display: none !important; }
+@media (max-width: 760px) { .attract { grid-template-columns: auto 1fr; } nav.tabs { grid-column: 1 / -1; justify-content: flex-start; } .cols { grid-template-columns: 1fr; } .score { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .blink, .life .bar.worn, .tagme.flash { animation: none; } body.crt::after { display: none; } }
+</style>
+</head>
+<body class="crt">
+<main>
+  <header class="attract">
+    <div id="logo" aria-hidden="true"></div>
+    <div>
+      <h1>TAG TEAM WRESTLING</h1>
+      <div class="sub">your Claude accounts are a tag team</div>
+      <div class="who" id="who">Lacing up…</div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="ring">Ring</button>
+      <button role="tab" aria-selected="false" data-tab="roster">Roster</button>
+      <button role="tab" aria-selected="false" data-tab="blind">Blind tag</button>
+      <button role="tab" aria-selected="false" data-tab="rules">Rules</button>
+      <button id="refresh" title="Fetch fresh stamina">Refresh</button>
+      <button id="crt" title="Scanlines on or off">CRT</button>
+    </nav>
+  </header>
+
+  <div id="alerts"></div>
+
+  <section data-panel="ring">
+    <div class="score box">
+      <div id="belt" aria-hidden="true"></div>
+      <div>
+        <div class="display muted" style="font-size:10px">SCORE · career tokens</div>
+        <div class="digits" id="score">000,000,000,000</div>
+        <div class="stats">
+          <span>TONIGHT <b id="sToday">-</b></span><span>THIS MONTH <b id="sMonth">-</b></span>
+          <span>PURSE <b id="sPurse">-</b></span><span>SHOW STREAK <b id="sStreak">-</b></span>
+          <span>MAIN EVENT <b id="sBest">-</b></span><span>LAST HOUR <b id="sBurn">-</b></span>
+        </div>
+      </div>
+    </div>
+
+    <h2>SELECT YOUR PARTNER</h2>
+    <div class="select" id="cards"></div>
+
+    <div class="box history" style="margin-bottom:14px">
+      <div class="head">
+        <h2 class="grow" id="histTitle" style="margin:0">MATCH HISTORY</h2>
+        <label>Partner <select id="acctFilter"></select></label>
+        <label>Show <select id="metric">
+          <option value="total">All tokens</option><option value="output">Output tokens</option><option value="cost">Purse</option>
+        </select></label>
+      </div>
+      <div class="scroll"><svg id="heatmap" role="img" aria-label="Daily token use for the last year"></svg></div>
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:8px">
+        <span id="dayInfo" class="muted">Pick a night to see its card.</span>
+        <span class="legend">Cold <i style="background:var(--h0)"></i><i style="background:var(--h1)"></i><i style="background:var(--h2)"></i><i style="background:var(--h3)"></i><i style="background:var(--h4)"></i> Hot</span>
+      </div>
+    </div>
+
+    <div class="cols">
+      <div class="box"><h2>HIGH SCORES · MONTHS</h2><table id="months"></table></div>
+      <div class="box"><h2>MOVESET · MODELS, 30 DAYS</h2><table id="models"></table></div>
+    </div>
+    <div class="cols">
+      <div class="box"><h2>VENUES · PROJECTS, 30 DAYS</h2><table id="projects"></table></div>
+      <div class="box"><h2>MATCHES IN PROGRESS</h2><table id="sessions"></table></div>
+    </div>
+  </section>
+
+  <section data-panel="roster" class="hidden">
+    <div class="box" style="margin-bottom:14px"><h2>PRE-MATCH CHECKLIST</h2><ul class="steps" id="checks"></ul></div>
+    <div class="cols">
+      <div class="box">
+        <h2>SIGN A PARTNER</h2>
+        <div>Sign the account Claude Code is logged in as now.</div>
+        <form class="row" id="sign"><input name="alias" placeholder="Ring name (optional)" autocomplete="off"><button class="go">Sign</button></form>
+        <p class="muted">New partner: run /login in Claude Code, log in to the other account, then press Sign again. Your current partner is signed first, so nobody's lost.</p>
+      </div>
+      <div class="box">
+        <h2>SIGN BY CONTRACT</h2>
+        <div>A long-lived token from <b>claude setup-token</b>, or an API key. It goes to cswap over stdin, never into logs.</div>
+        <form class="row" id="contract">
+          <input name="token" type="password" placeholder="sk-ant-…" autocomplete="off" required>
+          <input name="email" placeholder="Label email (optional)" autocomplete="off">
+          <button class="go">Sign</button>
+        </form>
+      </div>
+    </div>
+    <div class="box"><h2>THE ROSTER</h2><table id="manage"></table></div>
+  </section>
+
+  <section data-panel="blind" class="hidden">
+    <div class="box" style="margin-bottom:14px">
+      <div class="switch">
+        <button id="autoToggle" class="go">Blind tag: off</button>
+        <button id="autoPreview">What would the corner do?</button>
+        <button id="svc">Corner man: stay with me</button>
+      </div>
+      <p id="autoMode"></p>
+      <div class="settings" id="autoSettings"></div>
+    </div>
+    <div class="box"><h2>RECENT BLIND TAGS</h2><table id="autoEvents"></table></div>
+  </section>
+
+  <section data-panel="rules" class="hidden">
+    <div class="box"><h2>HOW THE MATCH WORKS</h2><pre class="rules" id="rules"></pre></div>
+  </section>
+
+  <footer>Tag Team Wrestling: when the partner in the ring is worn down, slap hands and tag a fresh one in. Built on claude-swap. Not affiliated with any wrestling company or with Anthropic; the mascot is fan art.</footer>
+</main>
+<div id="pop" aria-hidden="true"><div class="burst"><div id="popArt"></div><div class="word">TAG!</div></div></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/*@MASCOT@*/
+</script>
+<script>
+const TOKEN = new URLSearchParams(location.hash.slice(1)).get("t") || "";
+// Inside the VS Code / VSCodium extension the page talks to the extension, not HTTP.
+const VSC = typeof acquireVsCodeApi === "function" ? acquireVsCodeApi() : null;
+const pending = new Map(); let seq = 0;
+if (VSC) window.addEventListener("message", ev => { const m = ev.data || {}; const p = pending.get(m.id); if (p) { pending.delete(m.id); m.error ? p.reject(new Error(m.error)) : p.resolve(m.result); } else if (m.type === "state") load(false); else if (m.type === "tagged") slap(); });
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let S = null, selDay = null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = n => { n = Number(n) || 0; for (const [u, s] of [["B", 1e9], ["M", 1e6], ["K", 1e3]]) if (Math.abs(n) >= s) return (n / s).toFixed(1) + u; return String(Math.round(n)); };
+const money = n => "$" + (Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const scoreDigits = n => String(Math.round(Number(n) || 0)).padStart(12, "0").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+async function api(path, body) {
+  if (VSC) return new Promise((resolve, reject) => { const id = ++seq; pending.set(id, { resolve, reject }); VSC.postMessage({ id, path, body }); });
+  const r = await fetch(path, { method: body ? "POST" : "GET", headers: { "X-Tagteam-Token": TOKEN, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+  const data = await r.json().catch(() => ({ error: "bad response" }));
+  if (!r.ok || data.ok === false) throw new Error(data.error || "request failed");
+  return data;
+}
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = "none", 4500); }
+function slap() {
+  if (REDUCED) return;
+  const pop = $("pop"); pop.classList.add("show"); let i = 1;
+  const step = () => { $("popArt").innerHTML = mascotSVG(`mascot/slap-${i}`, 5, "Tag!"); if (++i <= 4) setTimeout(step, 140); else setTimeout(() => pop.classList.remove("show"), 700); };
+  step();
+}
+async function run(btn, path, body, ok, isTag) {
+  if (btn) btn.disabled = true;
+  try { const res = await api(path, body); if (isTag && res.switched !== false) slap(); toast(ok || res.message || "Done"); await load(true); }
+  catch (e) { toast(e.message); } finally { if (btn) btn.disabled = false; }
+}
+
+const usageOf = a => a.usage || a.lastGoodUsage || {};
+function lifeBar(label, w) {
+  if (!w) return `<div class="life"><span>${label}</span><div class="bar"></div><span>?</span></div>`;
+  const left = Math.max(0, 100 - w.pct), on = Math.round(left / 5);
+  const cls = left > 50 ? "" : left > 10 ? "mid" : "low", worn = w.pct >= S.threshold && w.pct < 100 ? "worn" : "";
+  return `<div class="life" title="${label}: ${Math.round(w.pct)}% used${w.countdown ? ", resets in " + esc(w.countdown) : ""}"><span>${label}</span>
+    <div class="bar ${cls} ${worn}">${Array.from({ length: 20 }, (_, i) => `<i class="${i < on ? "on" : ""}"></i>`).join("")}</div>
+    <span>${Math.round(w.pct)}%</span></div>`;
+}
+const STATUS = { token_expired: "token expired, refreshes on next use", api_key: "API key (no stamina limit)", relogin_required: "injured: log in again",
+  keychain_unavailable: "keychain locked", foreign_credential: "wrong credentials", no_credentials: "no saved login", unavailable: "stamina unknown" };
+
+function renderAlerts() {
+  const out = [];
+  for (const a of S.alerts) {
+    if (a.kind === "near-limit") {
+      const s = a.suggest;
+      out.push(`<div class="tagme ${a.ko ? "ko" : ""} flash" role="alert"><div>${partnerSVG("red", 3, "worn down")}</div>
+        <div class="grow"><div class="big">${a.ko ? "DOWN FOR THE COUNT!" : "REACH FOR THE TAG!"}</div><div>${esc(a.message)}.${s ? ` ${esc(s.label)} is fresh (${Math.round(s.pct)}% used).` : " Nobody on the apron has stamina left."}</div></div>
+        ${s ? `<button class="go" data-tag="${s.number}">TAG ME &gt; ${esc(s.label)}</button>` : ""}<button data-tag="best">Hot tag: best</button></div>`);
+    } else out.push(`<div class="note">${esc(a.message)}</div>`);
+  }
+  for (const e of S.errors) out.push(`<div class="note">claude-swap: ${esc(e)}</div>`);
+  $("alerts").innerHTML = out.join("");
+}
+
+function renderCards() {
+  $("cards").innerHTML = S.accounts.map((a, i) => {
+    const u = usageOf(a), five = u.fiveHour, seven = u.sevenDay;
+    const ko = (five && five.pct >= 100) || (seven && seven.pct >= 100);
+    const status = !five && !seven ? `<div class="muted">${esc(STATUS[a.usageStatus] || a.usageStatus)}</div>` : "";
+    const action = a.active ? `<span class="tag"><span class="cursor blink">▶</span> IN THE RING</span>`
+      : a.disabled ? `<span class="tag muted">BENCHED</span>`
+      : `<button class="${a.nearLimit ? "" : "go"}" data-tag="${a.number}">Tag in</button>`;
+    return `<div class="card ${a.active ? "in" : ""} ${a.nearLimit ? "worn" : ""} ${a.disabled ? "bench" : ""}">
+      ${ko ? `<span class="ko">K.O.</span>` : ""}
+      <div class="portrait">${partnerSVG(i % 2 ? "blue" : "red", 3, a.label)}</div>
+      <div>
+        <div class="name">${esc(a.label)}</div>
+        <div class="email">#${a.number} · ${esc(a.email)}</div>
+        ${status || lifeBar("STAMINA", five) + lifeBar("ENDURANCE", seven)}
+      </div>
+      <div class="actions"><span>tonight ${fmt(a.tokens.today.total)} · month ${fmt(a.tokens.month.total)}${a.liveSessions ? ` · ${a.liveSessions} in progress` : ""}</span>${action}</div>
+    </div>`;
+  }).join("") || `<div class="note">Nobody's signed yet. Open the Roster tab to sign your first partner.</div>`;
+}
+
+function heatKey() { return $("acctFilter").value || "all"; }
+function renderHistory() {
+  const key = heatKey(), hm = S.tokens.heatmap[key] || S.tokens.heatmap.all, metric = $("metric").value;
+  const tot = S.tokens.totals[key] || S.tokens.totals.all;
+  const val = c => c[metric];
+  const vals = hm.cells.filter(c => !c.future && val(c) > 0).map(val).sort((a, b) => a - b);
+  const q = vals.length ? [0.25, 0.5, 0.75].map(p => vals[Math.floor((vals.length - 1) * p)]) : [0, 0, 0];
+  const level = v => v <= 0 ? 0 : 1 + q.filter(x => v > x).length;
+  const C = 12, L = 26, T = 14, weeks = Math.ceil(hm.cells.length / 7);
+  const svg = $("heatmap"); svg.setAttribute("viewBox", `0 0 ${L + weeks * C} ${T + 7 * C}`); svg.setAttribute("shape-rendering", "crispEdges");
+  let s = "", lastM = -1;
+  for (let w = 0; w < weeks; w++) {
+    const d = new Date(hm.cells[w * 7].date + "T00:00");
+    if (d.getMonth() !== lastM) { if (w < weeks - 2) s += `<text x="${L + w * C}" y="9">${d.toLocaleString(undefined, { month: "short" })}</text>`; lastM = d.getMonth(); }
+    for (let r = 0; r < 7; r++) {
+      const c = hm.cells[w * 7 + r]; if (!c || c.future) continue;
+      const v = val(c), tip = `${new Date(c.date + "T00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}: ${metric === "cost" ? money(v) : fmt(v) + " tokens"}`;
+      s += `<rect class="day ${c.date === selDay ? "sel" : ""}" data-date="${c.date}" x="${L + w * C}" y="${T + r * C}" width="10" height="10" fill="var(--h${level(v)})"><title>${tip}</title></rect>`;
+    }
+  }
+  ["", "Mon", "", "Wed", "", "Fri", ""].forEach((n, r) => n && (s += `<text x="0" y="${T + r * C + 8}">${n}</text>`));
+  svg.innerHTML = s;
+  const yearVal = metric === "cost" ? money(hm.yearCost) : fmt(metric === "output" ? hm.cells.reduce((a, c) => a + (c.future ? 0 : c.output), 0) : hm.yearTotal);
+  $("histTitle").textContent = `MATCH HISTORY · ${yearVal} ${metric === "cost" ? "PURSE" : metric === "output" ? "OUTPUT" : "TOKENS"} THIS YEAR`;
+  $("score").textContent = scoreDigits(tot.lifetime.total);
+  $("sToday").textContent = `${fmt(tot.today.total)} (${money(tot.today.cost)})`;
+  $("sMonth").textContent = `${fmt(tot.month.total)} (${money(tot.month.cost)})`;
+  $("sPurse").textContent = money(tot.lifetime.cost);
+  $("sStreak").textContent = `${hm.streak} (best ${hm.longestStreak})`;
+  $("sBest").textContent = hm.busiest ? `${new Date(hm.busiest.date + "T00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })} · ${fmt(hm.busiest.total)}` : "-";
+  const months = (S.tokens.monthly[key] || S.tokens.monthly.all).filter(m => m.total > 0).sort((a, b) => b[metric] - a[metric]).slice(0, 6);
+  $("months").innerHTML = `<tr><th>#</th><th>Month</th><th class="n">Tokens</th><th class="n">Purse</th></tr>` +
+    (months.map((m, i) => `<tr><td class="rank">${i + 1}</td><td>${new Date(m.month + "-01T00:00").toLocaleString(undefined, { month: "short", year: "numeric" })}</td><td class="n">${fmt(m.total)}</td><td class="n">${money(m.cost)}</td></tr>`).join("") || `<tr><td colspan="4" class="muted">No matches yet</td></tr>`);
+  showDay();
+}
+function showDay() {
+  const hm = S.tokens.heatmap[heatKey()] || S.tokens.heatmap.all, c = hm.cells.find(c => c.date === selDay);
+  $("dayInfo").textContent = c ? `${new Date(c.date + "T00:00").toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}: ${fmt(c.total)} tokens, ${fmt(c.output)} output, purse ${money(c.cost)}` : "Pick a night to see its card.";
+}
+
+function renderTables() {
+  $("models").innerHTML = `<tr><th>Move</th><th class="n">Tokens</th><th class="n">Purse</th></tr>` +
+    (S.tokens.models.map(m => `<tr><td>${esc(m.model)}</td><td class="n">${fmt(m.total)}</td><td class="n">${money(m.cost)}</td></tr>`).join("") || `<tr><td colspan="3" class="muted">No moves yet</td></tr>`);
+  $("projects").innerHTML = `<tr><th>Venue</th><th class="n">Tokens</th></tr>` +
+    (S.tokens.projects.map(p => `<tr><td>${esc(p.project)}</td><td class="n">${fmt(p.total)}</td></tr>`).join("") || `<tr><td colspan="2" class="muted">No venues yet</td></tr>`);
+  const byNum = Object.fromEntries(S.accounts.map(a => [String(a.number), a.label]));
+  $("sessions").innerHTML = `<tr><th>Partner</th><th>Venue</th><th>Where</th></tr>` +
+    (S.sessions.map(s => `<tr><td>${esc(byNum[s.account] || s.account || "?")}</td><td>${esc((s.cwd || "").split(/[\\/]/).slice(-2).join("/"))}</td><td class="muted">${esc(s.entrypoint || s.profile)}${s.status ? " · " + esc(s.status) : ""}</td></tr>`).join("") || `<tr><td colspan="3" class="muted">No matches in progress</td></tr>`);
+  $("sBurn").textContent = fmt(S.tokens.burnPerHour);
+}
+
+function renderRoster() {
+  $("checks").innerHTML = S.setup.map(c => {
+    let fix = "";
+    if (!c.ok && c.fix === "save-current") fix = ` <button class="go" data-act="add">Sign now</button>`;
+    else if (!c.ok && c.fix === "login-another") fix = ` <span class="muted">Run /login in Claude Code with another account, then sign it.</span>`;
+    else if (!c.ok) fix = ` <span class="muted">${esc(c.fix)}</span>`;
+    return `<li class="${c.ok ? "ok" : "todo"}">${c.ok ? "■" : "□"} ${esc(c.label)}${fix}</li>`;
+  }).join("");
+  $("manage").innerHTML = `<tr><th>#</th><th>Partner</th><th>Ring name</th><th></th></tr>` + S.accounts.map(a => `<tr>
+    <td class="rank">${a.number}</td><td>${esc(a.email)}${a.disabled ? " · benched" : ""}</td>
+    <td><input value="${esc(a.alias || "")}" data-alias="${a.number}" placeholder="none" style="width:140px"></td>
+    <td style="text-align:right;white-space:nowrap"><button data-act="${a.disabled ? "enable" : "disable"}" data-n="${a.number}">${a.disabled ? "Unbench" : "Bench"}</button>
+    <button class="hot" data-act="remove" data-n="${a.number}">Release</button></td></tr>`).join("");
+}
+
+const AUTO_FIELDS = [
+  ["threshold", "Tag-out point (% stamina used)", "number"], ["strategy", "Tag in the partner with", ["best", "consume-first"]],
+  ["cooldownSeconds", "Breather between tags (seconds)", "number"], ["hysteresisPct", "Only tag if the partner is this much fresher (%)", "number"],
+  ["includeApiKeyAccounts", "API-key partners as a last resort", ["false", "true"]],
+];
+function renderBlind() {
+  const A = S.auto;
+  $("autoToggle").textContent = `Blind tag: ${A.enabled ? "on" : "off"}`;
+  $("autoToggle").className = A.enabled ? "go" : "";
+  $("svc").textContent = A.serviceInstalled ? "Send the corner man home" : "Corner man: stay with me";
+  $("autoMode").textContent = !A.enabled ? "Off. TAG ME asks you before every tag."
+    : A.serviceInstalled ? "On, and the corner man keeps watch even with Claude Code closed."
+    : "On while Claude Code or this ring is open: partners tag out before they're worn down.";
+  if (!$("autoSettings").dataset.done) {
+    $("autoSettings").innerHTML = AUTO_FIELDS.map(([k, l, t]) => `<label>${l}${Array.isArray(t)
+      ? `<select data-auto="${k}">${t.map(o => `<option value="${o}">${o === "best" ? "most stamina left" : o === "consume-first" ? "soonest weekly reset" : o === "true" ? "yes" : o === "false" ? "no" : o}</option>`).join("")}</select>`
+      : `<input type="number" data-auto="${k}" min="0">`}</label>`).join("");
+    $("autoSettings").dataset.done = 1;
+  }
+  document.querySelectorAll("[data-auto]").forEach(el => { const v = A.settings[el.dataset.auto]; if (v !== undefined && v !== null && document.activeElement !== el) el.value = String(v); });
+  const byNum = Object.fromEntries(S.accounts.map(a => [String(a.number), a.label]));
+  $("autoEvents").innerHTML = `<tr><th>When</th><th>Tag</th><th>Call</th></tr>` + (A.recent.slice().reverse().map(e => e.event === "switch"
+    ? `<tr><td>${new Date(e.ts).toLocaleString()}</td><td>${esc(byNum[e.from?.number] || e.from?.number || "?")} &gt; ${esc(byNum[e.to?.number] || e.to?.email)}</td><td class="muted">${esc(e.trigger)}</td></tr>`
+    : `<tr><td>${new Date(e.ts).toLocaleString()}</td><td colspan="2" class="muted">${esc(e.event)}</td></tr>`).join("") || `<tr><td colspan="3" class="muted">No blind tags yet.</td></tr>`);
+}
+
+function render() {
+  const a = S.active;
+  $("who").innerHTML = a.label ? `IN THE RING: <span class="cursor">${esc(a.label)}</span>${a.managed ? "" : " (not signed)"}${S.alerts.some(x => x.kind === "near-limit") ? ` <span class="blink" style="color:var(--red)">PRESS TAG</span>` : ""}` : "Nobody in the ring";
+  const sel = $("acctFilter"), cur = sel.value;
+  sel.innerHTML = `<option value="all">Whole team</option>` + S.accounts.map(x => `<option value="${x.number}">${esc(x.label)}</option>`).join("") +
+    (S.tokens.heatmap["?"] ? `<option value="?">Before the bell</option>` : "");
+  sel.value = cur || "all";
+  $("rules").textContent = S.rules || "";
+  renderAlerts(); renderCards(); renderHistory(); renderTables(); renderRoster(); renderBlind();
+}
+async function load(force) {
+  try { S = await api("/api/state" + (force ? "?force=1" : "")); render(); }
+  catch (e) { $("who").textContent = TOKEN || VSC ? e.message : "Open the ring with `tagteam ring`."; }
+}
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("button"), day = e.target.closest("rect.day");
+  if (day) { selDay = day.dataset.date; renderHistory(); return; }
+  if (!b) return;
+  if (b.dataset.tab) {
+    document.querySelectorAll("[data-tab]").forEach(t => t.setAttribute("aria-selected", t === b));
+    document.querySelectorAll("[data-panel]").forEach(p => p.classList.toggle("hidden", p.dataset.panel !== b.dataset.tab));
+  } else if (b.dataset.tag) {
+    run(b, "/api/switch", { target: b.dataset.tag === "best" ? "" : b.dataset.tag }, null, true);
+  } else if (b.dataset.act === "add") {
+    run(b, "/api/account", { action: "add" }, "Signed to the roster");
+  } else if (b.dataset.act === "remove") {
+    if (b.dataset.confirm) run(b, "/api/account", { action: "remove", number: b.dataset.n }, "Released from the roster");
+    else { b.dataset.confirm = 1; b.textContent = "Sure? Release"; setTimeout(() => { delete b.dataset.confirm; b.textContent = "Release"; }, 4000); }
+  } else if (b.dataset.act) {
+    run(b, "/api/account", { action: b.dataset.act, number: b.dataset.n }, b.dataset.act === "disable" ? "Benched" : "Back from the bench");
+  } else if (b.id === "refresh") { b.disabled = true; load(true).finally(() => b.disabled = false); }
+  else if (b.id === "crt") { document.body.classList.toggle("crt"); try { localStorage.setItem("tagteam-crt", document.body.classList.contains("crt") ? "1" : "0"); } catch {} }
+  else if (b.id === "autoToggle") run(b, "/api/auto", { action: "toggle", enabled: !S.auto.enabled }, S.auto.enabled ? "Blind tag off" : "Blind tag on");
+  else if (b.id === "autoPreview") run(b, "/api/auto", { action: "preview" });
+  else if (b.id === "svc") run(b, "/api/auto", { action: S.auto.serviceInstalled ? "service-uninstall" : "service-install" });
+});
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (t.id === "acctFilter" || t.id === "metric") renderHistory();
+  else if (t.dataset.auto) run(null, "/api/auto", { action: "set", key: t.dataset.auto, value: t.value }, "Saved");
+  else if (t.dataset.alias) run(null, "/api/account", { action: "alias", number: t.dataset.alias, alias: t.value.trim() }, "Ring name saved");
+});
+$("sign").addEventListener("submit", e => { e.preventDefault(); run(e.submitter, "/api/account", { action: "add", alias: e.target.alias.value.trim() }, "Signed to the roster"); e.target.reset(); });
+$("contract").addEventListener("submit", e => { e.preventDefault(); const f = e.target; run(e.submitter, "/api/account", { action: "add-token", token: f.token.value, email: f.email.value.trim() }, "Signed by contract"); f.reset(); });
+
+try { if (localStorage.getItem("tagteam-crt") === "0") document.body.classList.remove("crt"); } catch {}
+$("logo").innerHTML = mascotSVG("mascot/icon", 3, "Tag Team Wrestling: two partners slapping hands");
+$("belt").innerHTML = mascotSVG("belt", 4, "Championship belt");
+load(false);
+setInterval(() => load(false), 60000);
+</script>
+</body>
+</html>

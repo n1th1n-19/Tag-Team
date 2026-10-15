@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Build output (scripts/package.py)
+dist/
+build/
+*.vsix
+vscode/media/index.html
+vscode/media/icon.png
+
+# Node
+node_modules/
+
+# Claude Code: personal settings and engine-written plugin types
+.claude/settings.local.json
+plugin/.claude-plugin/types/
+
+# Tooling scratch
+.remember/
+.playwright-mcp/
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+/.vscode/

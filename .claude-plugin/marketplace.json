@@ -1,0 +1,16 @@
+{
+  "name": "tag-team",
+  "owner": {
+    "name": "n1th1n-19"
+  },
+  "metadata": {
+    "description": "Tag Team Wrestling: your Claude accounts are a tag team"
+  },
+  "plugins": [
+    {
+      "name": "tag-team",
+      "source": "./plugin",
+      "description": "Stamina for every Claude account, a retro match history of your token use, and TAG ME to switch before one is worn down"
+    }
+  ]
+}

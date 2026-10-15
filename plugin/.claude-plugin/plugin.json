@@ -1,0 +1,32 @@
+{
+  "name": "tag-team",
+  "version": "0.2.0",
+  "description": "Tag Team Wrestling: your Claude accounts are a tag team. Stamina for every partner, a retro match history of your token use, and TAG ME to switch before one is worn down. Built on claude-swap.",
+  "author": {
+    "name": "n1th1n-19"
+  },
+  "license": "MIT",
+  "keywords": [
+    "tag team",
+    "wrestling",
+    "accounts",
+    "usage",
+    "tokens",
+    "claude-swap"
+  ],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "tagteamPath": {
+      "type": "string",
+      "title": "tagteam command",
+      "description": "Path to the tagteam executable, if it isn't on PATH",
+      "default": "tagteam"
+    },
+    "refreshSeconds": {
+      "type": "number",
+      "title": "Refresh every (seconds)",
+      "description": "How often usage is re-read (minimum 30)",
+      "default": 60
+    }
+  }
+}

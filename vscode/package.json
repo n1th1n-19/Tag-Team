@@ -1,0 +1,79 @@
+{
+  "name": "tag-team",
+  "displayName": "Tag Team Wrestling: Claude accounts",
+  "description": "Your Claude accounts are a tag team: stamina for every partner, a retro match history of your token use, and TAG ME to switch before one is worn down. Built on claude-swap.",
+  "version": "0.2.0",
+  "publisher": "n1th1n-19",
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/n1th1n-19/tag-team"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other",
+    "Visualization"
+  ],
+  "keywords": [
+    "claude",
+    "claude code",
+    "tag team",
+    "accounts",
+    "usage",
+    "tokens"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "tagTeam.open",
+        "title": "Open the ring",
+        "category": "Tag Team"
+      },
+      {
+        "command": "tagTeam.tagIn",
+        "title": "Tag a partner in\u2026",
+        "category": "Tag Team"
+      },
+      {
+        "command": "tagTeam.tagOut",
+        "title": "Hot tag (tag out to the freshest partner)",
+        "category": "Tag Team"
+      },
+      {
+        "command": "tagTeam.refresh",
+        "title": "Refresh stamina",
+        "category": "Tag Team"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "tagTeam.tagIn",
+        "key": "ctrl+alt+t",
+        "mac": "cmd+alt+t"
+      }
+    ],
+    "configuration": {
+      "title": "Tag Team",
+      "properties": {
+        "tagTeam.tagteamPath": {
+          "type": "string",
+          "default": "tagteam",
+          "description": "Path to the tagteam command, if it isn't on PATH."
+        },
+        "tagTeam.refreshSeconds": {
+          "type": "number",
+          "default": 60,
+          "minimum": 30,
+          "description": "How often stamina is re-read."
+        }
+      }
+    }
+  }
+}

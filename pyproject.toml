@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tag-team"
+version = "0.2.0"
+description = "Tag Team Wrestling for Claude Code: your accounts are a tag team. Match history of your token use and one-slap account switching, built on claude-swap"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = ["claude-swap>=0.26"]
+
+[project.scripts]
+tagteam = "tagteam.cli:main"
+swapme = "tagteam.cli:legacy_main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["tagteam"]
