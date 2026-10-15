@@ -19,8 +19,21 @@ class CswapError(RuntimeError):
     pass
 
 
+def find_exe(name: str) -> str | None:
+    """Absolute path of a program on PATH, never one in the current directory."""
+    found = shutil.which(name)
+    if not found or not os.path.isabs(found):
+        return None
+    if os.path.dirname(os.path.realpath(found)) == os.path.realpath(os.getcwd()):
+        return None
+    return found
+
+
+_SCHTASKS = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "schtasks.exe")
+
+
 def cswap_argv() -> list[str] | None:
-    exe = os.environ.get("TAGTEAM_CSWAP") or os.environ.get("SWAPME_CSWAP") or shutil.which("cswap")
+    exe = os.environ.get("TAGTEAM_CSWAP") or os.environ.get("SWAPME_CSWAP") or find_exe("cswap")
     if exe:
         return [exe]
     try:
@@ -196,7 +209,7 @@ OLD_SERVICE = ("swap-me-auto", "com.swapme.auto")  # swap-me 0.1; removed on ins
 
 
 def _service_cmd() -> list[str]:
-    exe = shutil.which("tagteam")
+    exe = find_exe("tagteam")
     return [exe, "corner-man", "run"] if exe else [sys.executable, "-m", "tagteam", "corner-man", "run"]
 
 
@@ -216,7 +229,7 @@ def _remove_service(service: tuple[str, str]) -> None:
         subprocess.run(["launchctl", "unload", "-w", str(path)], capture_output=True)
         path.unlink(missing_ok=True)
     elif sys.platform.startswith("win"):
-        subprocess.run(["schtasks", "/Delete", "/F", "/TN", name], capture_output=True)
+        subprocess.run([_SCHTASKS, "/Delete", "/F", "/TN", name], capture_output=True)
     else:
         subprocess.run(["systemctl", "--user", "disable", "--now", f"{name}.service"], capture_output=True)
         service_path(service).unlink(missing_ok=True)
@@ -241,10 +254,10 @@ def service_install() -> dict:
         proc = subprocess.run(["launchctl", "load", "-w", str(path)], capture_output=True, text=True)
     elif sys.platform.startswith("win"):
         line = subprocess.list2cmdline(cmd)
-        proc = subprocess.run(["schtasks", "/Create", "/F", "/SC", "ONLOGON", "/RL", "LIMITED",
+        proc = subprocess.run([_SCHTASKS, "/Create", "/F", "/SC", "ONLOGON", "/RL", "LIMITED",
                                "/TN", name, "/TR", line], capture_output=True, text=True)
         if proc.returncode == 0:
-            subprocess.run(["schtasks", "/Run", "/TN", name], capture_output=True)
+            subprocess.run([_SCHTASKS, "/Run", "/TN", name], capture_output=True)
     else:
         path = service_path()
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -271,7 +284,7 @@ def service_uninstall() -> dict:
 
 def service_installed(service: tuple[str, str] = SERVICE) -> bool:
     if sys.platform.startswith("win"):
-        return subprocess.run(["schtasks", "/Query", "/TN", service[0]], capture_output=True).returncode == 0
+        return subprocess.run([_SCHTASKS, "/Query", "/TN", service[0]], capture_output=True).returncode == 0
     return service_path(service).exists()
 
 

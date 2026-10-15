@@ -28,11 +28,37 @@ if ($Uninstall) {
   exit 0
 }
 
-if (-not (Have uv)) {
-  Say "Installing uv (Python tool manager from astral.sh)"
-  powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-  $env:Path = "$env:USERPROFILE\.local\bin;$env:Path"
+# uv (installs Python 3.12+ and the tools): a pinned release, checked against its SHA-256 before it runs.
+$UvVersion = "0.12.13"
+$UvBuilds = @{
+  "AMD64" = @("x86_64-pc-windows-msvc", "a86c9dc7bad9b03f388583b7187c05fe9951c2e0d392217e8fd43d97787f6ec2")
+  "ARM64" = @("aarch64-pc-windows-msvc", "1efb2654b06e7063d4ac1fc9d49a9bda9a6704d82f035b589a2751a592f14151")
 }
+function Install-Uv {
+  $arch = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
+  if (-not $UvBuilds.ContainsKey($arch)) { throw "No pinned uv build for $arch. Install uv yourself (https://docs.astral.sh/uv/), then re-run." }
+  $target, $sha = $UvBuilds[$arch]
+  $tmp = Join-Path ([IO.Path]::GetTempPath()) ("uv-" + [guid]::NewGuid())
+  New-Item -ItemType Directory -Path $tmp | Out-Null
+  try {
+    Say "Installing uv $UvVersion ($target), verified by SHA-256"
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $zip = Join-Path $tmp "uv.zip"
+    Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/astral-sh/uv/releases/download/$UvVersion/uv-$target.zip" -OutFile $zip
+    $got = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLower()
+    if ($got -ne $sha) { throw "uv download failed its checksum ($got); nothing was installed." }
+    Expand-Archive -Path $zip -DestinationPath (Join-Path $tmp "x") -Force
+    $bin = Join-Path $env:USERPROFILE ".local\bin"
+    New-Item -ItemType Directory -Force -Path $bin | Out-Null
+    Get-ChildItem -Recurse (Join-Path $tmp "x") -Include uv.exe, uvx.exe, uvw.exe | Copy-Item -Destination $bin -Force
+    $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+    if (($userPath -split ";") -notcontains $bin) { [Environment]::SetEnvironmentVariable("Path", "$bin;$userPath", "User") }
+    $env:Path = "$bin;$env:Path"
+  } finally {
+    Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
+  }
+}
+if (-not (Have uv)) { Install-Uv }
 
 Remove-SwapMe
 

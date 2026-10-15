@@ -40,6 +40,8 @@ Built on [claude-swap](https://github.com/realiti4/claude-swap) (`cswap`). Works
 
 You need [Claude Code](https://claude.com/claude-code). The installer sets up everything else: uv, Python 3.12, claude-swap, the `tagteam` command, the Claude Code plugin, and the editor extension for any VS Code, VSCodium or Cursor it finds.
 
+If uv is missing, the installer downloads a pinned uv release (0.12.13) for your OS and CPU and checks it against its SHA-256 before running anything; on a mismatch it stops and installs nothing.
+
 | System | Download | Install |
 |---|---|---|
 | macOS | [tag-team-macos.zip](https://github.com/n1th1n-19/tag-team/releases/latest/download/tag-team-macos.zip) | unzip, then `./install/install.sh` |
@@ -96,6 +98,8 @@ tagteam statusline               # for Claude Code's statusLine setting
 - The browser ring listens on 127.0.0.1 only and every API call needs a random per-run token (in the URL fragment, never sent as part of a URL) plus a localhost Host header.
 - Contracts (tokens) go to claude-swap on stdin, never on a command line.
 - Files in `~/.tag-team` are owner-only (0600).
+- Programs are run by absolute path from PATH, never from the current folder, so a `cswap.bat` or `tagteam.exe` planted in a project can't be picked up. The editor extension only takes the `tagteam` path from your user settings, not from a workspace.
+- The browser ring's secret token never appears on the browser's command line.
 
 ## Design
 

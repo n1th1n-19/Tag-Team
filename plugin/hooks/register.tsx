@@ -123,8 +123,30 @@ let inflight = false
 let lastRefresh = 0
 let alerted: string | null = null
 
+let RESOLVED: { bin: string, cwd?: string } | null = null
+
+// Absolute path from PATH only, run from home: Windows would otherwise try the project folder first.
+async function resolveBin($: any): Promise<{ bin: string, cwd?: string }> {
+  if (RESOLVED) return RESOLVED
+  const path = String((await $.env.get('PATH')) ?? '')
+  const win = (await $.env.get('OS')) === 'Windows_NT' || /^[A-Za-z]:\\/.test(path)
+  const home = (win ? await $.env.get('USERPROFILE') : await $.env.get('HOME')) || undefined
+  const isAbs = (p: string) => (win ? /^[A-Za-z]:[\\/]/.test(p) : p.startsWith('/'))
+  if (isAbs(BIN)) return (RESOLVED = { bin: BIN, cwd: home })
+  const exts = win ? ['.exe', '.cmd', '.bat'] : ['']
+  for (const dir of path.split(win ? ';' : ':')) {
+    if (!dir || !isAbs(dir)) continue
+    for (const ext of exts) {
+      const file = `${dir.replace(/[\\/]+$/, '')}${win ? '\\' : '/'}${BIN}${ext}`
+      try { if (await $.fs.exists(file)) return (RESOLVED = { bin: file, cwd: home }) } catch { /* keep looking */ }
+    }
+  }
+  throw new Error(`Can't find "${BIN}" on PATH. Install Tag Team (see README) or set tagteamPath in /config.`)
+}
+
 async function tagteam($: any, args: string[], stdin?: string): Promise<any> {
-  const res = await $.process.run([BIN, ...args], { timeoutMs: 120_000, stdin, env: { NO_COLOR: '1' } })
+  const { bin, cwd } = await resolveBin($)
+  const res = await $.process.run([bin, ...args], { timeoutMs: 120_000, stdin, cwd, env: { NO_COLOR: '1' } })
   const text = res.stdout.trim()
   let data: any = null
   try { data = text ? JSON.parse(text.split('\n').pop() as string) : null } catch { /* plain text */ }
@@ -463,6 +485,7 @@ async function dashboard($: any, e: any) {
 
 export const register: Register = (on, options) => {
   BIN = String(options.tagteamPath || 'tagteam')
+  RESOLVED = null
   REFRESH_MS = Math.max(30, Number(options.refreshSeconds) || 60) * 1000
 
   on('session.start', async ($, e, next) => {

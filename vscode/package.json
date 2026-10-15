@@ -2,7 +2,7 @@
   "name": "tag-team",
   "displayName": "Tag Team Wrestling: Claude accounts",
   "description": "Your Claude accounts are a tag team: stamina for every partner, a retro match history of your token use, and TAG ME to switch before one is worn down. Built on claude-swap.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "n1th1n-19",
   "license": "MIT",
   "icon": "media/icon.png",

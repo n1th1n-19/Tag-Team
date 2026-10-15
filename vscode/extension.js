@@ -3,6 +3,7 @@ const vscode = require('vscode')
 const cp = require('child_process')
 const fs = require('fs')
 const path = require('path')
+const os = require('os')
 
 let snap = null
 let panel = null
@@ -22,11 +23,27 @@ const usageOf = a => a.usage || a.lastGoodUsage || {}
 const pct = w => (w ? `${Math.round(w.pct)}%` : '-')
 const pips = w => { const left = Math.round(Math.max(0, 100 - (w?.pct ?? 0)) / 20); return '▮'.repeat(left) + '▯'.repeat(5 - left) }
 
+// Absolute path from PATH only: Windows would otherwise try the workspace folder first.
+function resolveBin(name) {
+  if (path.isAbsolute(name)) return name
+  const exts = process.platform === 'win32' ? (process.env.PATHEXT || '.EXE;.CMD;.BAT').split(';') : ['']
+  for (const dir of (process.env.PATH || '').split(path.delimiter)) {
+    if (!dir || !path.isAbsolute(dir)) continue
+    for (const ext of exts) {
+      const file = path.join(dir, name + ext.toLowerCase())
+      try { if (fs.statSync(file).isFile()) return file } catch { /* keep looking */ }
+    }
+  }
+  return null
+}
+
 function tagteam(args, stdin) {
   return new Promise((resolve, reject) => {
-    let bin = setting('tagteamPath') || 'tagteam'
-    if (bin === 'swapme') bin = 'tagteam'
-    const child = cp.execFile(bin, args, { env: { ...process.env, NO_COLOR: '1' }, timeout: 120000, maxBuffer: 64 * 1024 * 1024, windowsHide: true }, (err, stdout, stderr) => {
+    let name = setting('tagteamPath') || 'tagteam'
+    if (name === 'swapme') name = 'tagteam'
+    const bin = resolveBin(name)
+    if (!bin) return reject(new Error(`Can't find "${name}" on PATH. Install Tag Team, or set tagTeam.tagteamPath in Settings.`))
+    const child = cp.execFile(bin, args, { cwd: os.homedir(), env: { ...process.env, NO_COLOR: '1' }, timeout: 120000, maxBuffer: 64 * 1024 * 1024, windowsHide: true, shell: false }, (err, stdout, stderr) => {
       const text = String(stdout || '').trim()
       let data = null
       try { data = text ? JSON.parse(text.split('\n').pop()) : null } catch { /* plain text */ }

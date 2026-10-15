@@ -34,12 +34,42 @@ if [ "${1:-}" = "--uninstall" ]; then
   exit 0
 fi
 
-# 1. uv: installs Python 3.12+ and the tools in isolated environments.
-if ! have uv; then
-  say "Installing uv (Python tool manager from astral.sh)"
-  curl -LsSf https://astral.sh/uv/install.sh | sh
+# 1. uv (installs Python 3.12+ and the tools): a pinned release, checked against its SHA-256 before it runs.
+UV_VERSION="0.12.13"
+install_uv() {
+  local os arch target sha tmp
+  os="$(uname -s)"; arch="$(uname -m)"
+  case "$arch" in x86_64|amd64) arch=x86_64 ;; aarch64|arm64) arch=aarch64 ;; *) arch=unsupported ;; esac
+  case "$os" in
+    Darwin) target="$arch-apple-darwin" ;;
+    Linux) if ldd --version 2>&1 | grep -qi musl; then target="$arch-unknown-linux-musl"; else target="$arch-unknown-linux-gnu"; fi ;;
+    *) target=unsupported ;;
+  esac
+  case "$target" in
+    x86_64-unknown-linux-gnu)   sha=745765a3b6e360ad76743599ae5c42e9278c7edf8bbff9fc76d05bf2623a04dd ;;
+    aarch64-unknown-linux-gnu)  sha=2eaa5d94f5db7b3a1a092156b9420459e42ab0217d917fe74a876309cef9b5e9 ;;
+    x86_64-unknown-linux-musl)  sha=4e2bfd0c9007b1032a50e539e965fd0a6037d87ad93ae1580d220a92d4c94098 ;;
+    aarch64-unknown-linux-musl) sha=f44bc1037a17889fe562fffd2002d4ed108e499fbe68b4f022af244dc7b8244f ;;
+    x86_64-apple-darwin)        sha=5e287ef61cb6a9b61b3a83fef124fd143e400468a7dac794230147a810e17119 ;;
+    aarch64-apple-darwin)       sha=7e6ddb9316acc00f2296c82ff4d99977870ee34b2f0ddcae9444d714db9364ed ;;
+    *) say "No pinned uv build for $os/$(uname -m). Install uv yourself (https://docs.astral.sh/uv/), then re-run."; exit 1 ;;
+  esac
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' RETURN
+  say "Installing uv $UV_VERSION ($target), verified by SHA-256"
+  local url="https://github.com/astral-sh/uv/releases/download/$UV_VERSION/uv-$target.tar.gz"
+  if have curl; then curl --proto '=https' --tlsv1.2 -fsSL "$url" -o "$tmp/uv.tar.gz"
+  elif have wget; then wget --https-only -qO "$tmp/uv.tar.gz" "$url"
+  else say "Need curl or wget to download uv."; exit 1; fi
+  local got
+  if have sha256sum; then got="$(sha256sum "$tmp/uv.tar.gz" | awk '{print $1}')"; else got="$(shasum -a 256 "$tmp/uv.tar.gz" | awk '{print $1}')"; fi
+  if [ "$got" != "$sha" ]; then say "uv download failed its checksum ($got); nothing was installed."; exit 1; fi
+  tar -xzf "$tmp/uv.tar.gz" -C "$tmp"
+  mkdir -p "$HOME/.local/bin"
+  install -m 0755 "$tmp/uv-$target/uv" "$tmp/uv-$target/uvx" "$HOME/.local/bin/"
   export PATH="$HOME/.local/bin:$PATH"
-fi
+}
+have uv || install_uv
 
 # 2. Old name out. Its history (~/.swap-me) moves to ~/.tag-team the first time tagteam runs.
 remove_swap_me

@@ -179,6 +179,24 @@ def test_mascot_from_figma():
     assert "tag" in cli.RULES.lower() and "apron" in cli.RULES
 
 
+def test_programs_in_the_current_folder_are_never_run():
+    with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as other:
+        for folder in (d, other):
+            exe = Path(folder) / "tt-probe"
+            exe.write_text("#!/bin/sh\n")
+            exe.chmod(0o755)
+        saved_path, saved_cwd = os.environ.get("PATH", ""), os.getcwd()
+        try:
+            os.chdir(d)
+            os.environ["PATH"] = f"{d}{os.pathsep}."
+            assert accounts.find_exe("tt-probe") is None
+            os.environ["PATH"] = other
+            assert accounts.find_exe("tt-probe") == str(Path(other) / "tt-probe")
+        finally:
+            os.environ["PATH"] = saved_path
+            os.chdir(saved_cwd)
+
+
 def test_ring_token_never_in_browser_argv():
     from tagteam import server
     url = "http://127.0.0.1:1234/#t=secret-token"

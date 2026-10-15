@@ -4,10 +4,16 @@ import { SNAP } from './fixture'
 
 const ran: string[][] = []
 
+const runs: any[] = []
+
 function fakeTagteam(on: any) {
   mock.clock(on)
+  // A planted ./tagteam in the project and a relative PATH entry must never be picked.
+  mock.env(on, { PATH: '.:/opt/tt/bin:/usr/bin', HOME: '/home/u' })
+  on('fs.exists', ($: any, e: any) => ({ value: e.path === '/opt/tt/bin/tagteam' || e.path === './tagteam' || e.path === './/tagteam' }))
   on('process.run', ($: any, e: any) => {
     ran.push([...e.argv])
+    runs.push(e)
     const out = e.argv[1] === 'state' ? JSON.stringify(SNAP) : JSON.stringify({ ok: true, switched: true, message: 'TAG! acct1 is in the ring.' })
     return { value: { exitCode: 0, stdout: out, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
@@ -62,5 +68,13 @@ describe('tag-team ring', () => {
     const res = await $.command.run({ command: 'tag-team', args: '' })
     expect(res.text).toMatch(/\| 1 \| acct1 \|/)
     expect(res.text).toMatch(/tag-out/)
+  })
+
+  test('runs tagteam by absolute path from home, never from the project folder', async ($: any, on: any) => {
+    fakeTagteam(on)
+    await $.command.run({ command: 'tag-team', args: '' })
+    const last = runs[runs.length - 1]
+    expect(last.argv[0]).toBe('/opt/tt/bin/tagteam')
+    expect(last.init.cwd).toBe('/home/u')
   })
 })
