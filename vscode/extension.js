@@ -11,11 +11,11 @@ let timer = null
 let alerted = null
 let inflight = null
 
-// Settings moved from swapMe.* (swap-me 0.1); the old keys still count.
+// User settings only: a workspace (e.g. a cloned repo's .vscode/settings.json) must never pick the executable we run.
 const setting = key => {
   const v = vscode.workspace.getConfiguration('tagTeam').inspect(key)
-  const set = v && (v.workspaceFolderValue ?? v.workspaceValue ?? v.globalValue)
-  return set ?? vscode.workspace.getConfiguration('swapMe').get(key === 'tagteamPath' ? 'swapmePath' : key) ?? v?.defaultValue
+  const old = vscode.workspace.getConfiguration('swapMe').inspect(key === 'tagteamPath' ? 'swapmePath' : key)
+  return v?.globalValue ?? old?.globalValue ?? v?.defaultValue
 }
 const fmt = n => { n = Number(n) || 0; for (const [u, s] of [['B', 1e9], ['M', 1e6], ['K', 1e3]]) if (Math.abs(n) >= s) return (n / s).toFixed(1) + u; return String(Math.round(n)) }
 const usageOf = a => a.usage || a.lastGoodUsage || {}

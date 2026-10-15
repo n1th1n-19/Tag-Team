@@ -65,15 +65,26 @@
         "tagTeam.tagteamPath": {
           "type": "string",
           "default": "tagteam",
-          "description": "Path to the tagteam command, if it isn't on PATH."
+          "description": "Path to the tagteam command, if it isn't on PATH. User settings only; workspace settings are ignored.",
+          "scope": "machine"
         },
         "tagTeam.refreshSeconds": {
           "type": "number",
           "default": 60,
           "minimum": 30,
-          "description": "How often stamina is re-read."
+          "description": "How often stamina is re-read.",
+          "scope": "application"
         }
       }
+    }
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Tag Team only runs the tagteam command from your user settings.",
+      "restrictedConfigurations": [
+        "tagTeam.tagteamPath"
+      ]
     }
   }
 }

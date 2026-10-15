@@ -179,6 +179,17 @@ def test_mascot_from_figma():
     assert "tag" in cli.RULES.lower() and "apron" in cli.RULES
 
 
+def test_ring_token_never_in_browser_argv():
+    from tagteam import server
+    url = "http://127.0.0.1:1234/#t=secret-token"
+    uri = server._launcher(url)
+    path = Path(uri.removeprefix("file://"))
+    assert "secret-token" not in uri
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    assert json.dumps(url) in path.read_text()
+    path.unlink()
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

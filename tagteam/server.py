@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import secrets
+import tempfile
 import threading
 import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
+from pathlib import Path
 
 from tagteam import accounts, art, store
 from tagteam import state as state_mod
@@ -138,13 +141,24 @@ def _auto_ticker() -> None:
                 pass
 
 
+def _launcher(url: str) -> str:
+    """A private (0600) file that redirects to the tokened URL, so the token never appears in the browser's argv."""
+    fd, path = tempfile.mkstemp(prefix="tagteam-ring-", suffix=".html")
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(f'<!doctype html><meta charset="utf-8"><title>Tag Team</title><script>location.replace({json.dumps(url)})</script>')
+    cleanup = threading.Timer(30, lambda: os.path.exists(path) and os.unlink(path))
+    cleanup.daemon = True
+    cleanup.start()
+    return Path(path).as_uri()
+
+
 def serve(port: int = 0, open_browser: bool = True) -> None:
     threading.Thread(target=_auto_ticker, daemon=True).start()
     httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     url = f"http://127.0.0.1:{httpd.server_address[1]}/#t={TOKEN}"
     print(f"The ring is open: {url}\n(Ctrl+C to close it)", flush=True)
     if open_browser:
-        webbrowser.open(url)
+        webbrowser.open(_launcher(url))
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
