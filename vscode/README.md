@@ -10,4 +10,4 @@ If you have more than one Claude account (say, work and personal), they're a tag
 
 Needs the `tagteam` command, which the Tag Team installer sets up: https://github.com/n1th1n-19/tag-team
 
-Tag Team uses generic wrestling words; it isn't affiliated with any wrestling company or with Anthropic. The mascot is fan art.
+Tag Team uses generic wrestling words; it isn't affiliated with any wrestling company or with Anthropic.

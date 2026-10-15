@@ -144,13 +144,13 @@ Don't sign up for extra accounts to get around usage limits. Anthropic's [Usage 
 
 ## Design
 
-The mascot (two Claude-style critters tag-teaming, one in red trunks, one in blue) was drawn in Figma: [Tag Team Wrestling: mascot](https://www.figma.com/design/R7exq8p1eMzkr0end2nxf1). Every pixel is a 1×1 rectangle on a 32×32 grid with palette color styles; the frames are `mascot/icon`, `mascot/slap-1..4` (the tag animation), `ring` and `belt`.
+The mascot (two lavender pixel critters tag-teaming, one in red trunks, one in blue) was drawn in Figma: [Tag Team Wrestling: mascot](https://www.figma.com/design/R7exq8p1eMzkr0end2nxf1), page *Mascot v2*. Every pixel is a 1×1 rectangle on a 32×32 grid; the frames are `mascot/icon`, `mascot/slap-1..4` (the tag animation), `mascot/red` and `mascot/blue` (portraits), `ring` and `belt`.
 
 `tagteam/web/mascot.js` is the export (one character per pixel) and the only copy the code uses: the ring page, the editor extension icon (`art.png`), the terminal banner (`art.banner`) and the plugin all read it. To change the art, edit it in Figma and re-run the export (a read-only `use_figma` script that walks each frame's rectangles and returns `{palette, frames}`), then paste the result into `mascot.js`.
 
 Fonts: [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P) and [VT323](https://fonts.google.com/specimen/VT323), both under the SIL Open Font License (`tagteam/web/fonts/OFL-*.txt`), bundled so the ring works offline.
 
-Tag Team uses generic wrestling words. It isn't affiliated with any wrestling company or with Anthropic, and the mascot is fan art of Claude's mascot.
+Tag Team uses generic wrestling words. It isn't affiliated with any wrestling company or with Anthropic.
 
 ## Project layout
 

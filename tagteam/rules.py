@@ -22,5 +22,5 @@ Tag Team does that for your Claude accounts:
   career            all-time totals     purse           estimated API price of those tokens
   before the bell   usage from before Tag Team started keeping score
 
-Tag Team uses generic wrestling words; it isn't connected to any wrestling company,
-and the mascot is fan art of Claude's mascot, not an Anthropic product."""
+Tag Team uses generic wrestling words; it isn't connected to any wrestling company
+or to Anthropic."""
