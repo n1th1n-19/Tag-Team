@@ -1,5 +1,6 @@
 """Build dist/tag-team-{macos,linux,windows}.zip and dist/tag-team.vsix. Run from anywhere: python scripts/package.py"""
 
+import hashlib
 import shutil
 import subprocess
 import sys
@@ -66,6 +67,11 @@ def main() -> None:
                 z.writestr(info, path.read_bytes())
             z.writestr("tag-team/INSTALL.txt", f"Tag Team Wrestling for {osname}\n\n{howto}\nThen, in Claude Code, type /tag-team. In VS Code, click [IN] in the status bar.\n")
         print(f"{out.relative_to(ROOT)}  {out.stat().st_size // 1024} KB")
+    for name in ("get.sh", "get.ps1"):
+        shutil.copy(ROOT / "install" / name, dist / name)
+    assets = sorted(p for p in dist.iterdir() if p.suffix in (".zip", ".vsix", ".sh", ".ps1"))
+    (dist / "SHA256SUMS.txt").write_text("".join(f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n" for p in assets))
+    print("dist/SHA256SUMS.txt  " + ", ".join(p.name for p in assets))
 
 
 if __name__ == "__main__":

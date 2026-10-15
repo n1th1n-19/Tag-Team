@@ -40,4 +40,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" dist/tag-team-macos.zip dist/tag-team-linux.zip dist/tag-team-windows.zip dist/tag-team.vsix \
+            dist/get.sh dist/get.ps1 dist/SHA256SUMS.txt \
             --title "Tag Team Wrestling $GITHUB_REF_NAME" --generate-notes

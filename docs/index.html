@@ -78,7 +78,16 @@ footer { color: var(--muted); font-size: 20px; margin-top: 30px; }
   </section>
 
   <section class="box">
-    <h2>INSTALL</h2>
+    <h2>INSTALL IN ONE LINE</h2>
+    <div id="one-unix">macOS / Linux:<pre><code>curl -fsSL https://github.com/n1th1n-19/tag-team/releases/latest/download/get.sh | bash</code></pre>
+      Uninstall:<pre><code>curl -fsSL https://github.com/n1th1n-19/tag-team/releases/latest/download/get.sh | bash -s -- --uninstall</code></pre></div>
+    <div id="one-win">Windows (PowerShell):<pre><code>irm https://github.com/n1th1n-19/tag-team/releases/latest/download/get.ps1 | iex</code></pre>
+      Uninstall:<pre><code>$env:TAGTEAM_UNINSTALL=1; irm https://github.com/n1th1n-19/tag-team/releases/latest/download/get.ps1 | iex</code></pre></div>
+    <p class="muted" style="margin-bottom:0">The script checks the download against the release's SHA256SUMS.txt before it installs anything.</p>
+  </section>
+
+  <section class="box">
+    <h2>OR INSTALL FROM THE ZIP</h2>
     <ol>
       <li id="step-unix">Unzip, open a terminal in the folder and run <pre><code>./install/install.sh</code></pre></li>
       <li id="step-win">On Windows, open PowerShell in the folder and run <pre><code>powershell -ExecutionPolicy Bypass -File install\install.ps1</code></pre></li>
@@ -97,6 +106,7 @@ const box = document.getElementById("downloads");
 box.querySelectorAll("a").forEach(a => a.classList.toggle("primary", a.dataset.os === os));
 box.prepend(box.querySelector(`[data-os="${os}"]`));
 document.getElementById(os === "windows" ? "step-unix" : "step-win").remove();
+document.getElementById(os === "windows" ? "one-unix" : "one-win").remove();
 </script>
 </body>
 </html>

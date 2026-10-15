@@ -38,6 +38,26 @@ Built on [claude-swap](https://github.com/realiti4/claude-swap) (`cswap`). Works
 
 ## Download and install
 
+**One line** (downloads the latest release, checks it against the release's `SHA256SUMS.txt`, then runs the installer):
+
+```bash
+# macOS / Linux
+curl -fsSL https://github.com/n1th1n-19/tag-team/releases/latest/download/get.sh | bash
+# uninstall
+curl -fsSL https://github.com/n1th1n-19/tag-team/releases/latest/download/get.sh | bash -s -- --uninstall
+```
+
+```powershell
+# Windows (PowerShell)
+irm https://github.com/n1th1n-19/tag-team/releases/latest/download/get.ps1 | iex
+# uninstall
+$env:TAGTEAM_UNINSTALL=1; irm https://github.com/n1th1n-19/tag-team/releases/latest/download/get.ps1 | iex
+```
+
+Pin a version with `TAGTEAM_VERSION=v0.2.1` in front of `bash` (or `$env:TAGTEAM_VERSION="v0.2.1"` on Windows). Prefer to read before you run? Download `get.sh` / `get.ps1` from the release, look at it, then run it.
+
+**Or download a zip:**
+
 You need [Claude Code](https://claude.com/claude-code). The installer sets up everything else: uv, Python 3.12, claude-swap, the `tagteam` command, the Claude Code plugin, and the editor extension for any VS Code, VSCodium or Cursor it finds.
 
 If uv is missing, the installer downloads a pinned uv release (0.12.13) for your OS and CPU and checks it against its SHA-256 before running anything; on a mismatch it stops and installs nothing.
@@ -54,7 +74,7 @@ Plugin only, at a Claude Code prompt: `/plugin install tag-team --marketplace n1
 
 **Coming from swap-me?** The installer removes swap-me (command, plugin, extension, service) and your history in `~/.swap-me` moves to `~/.tag-team` the first time `tagteam` runs. `swapme` still works for this version and points you to `tagteam`.
 
-Uninstall: `./install/install.sh --uninstall` (or `install.ps1 -Uninstall`). Your match history in `~/.tag-team` is kept.
+Uninstall: the one-liner above, or `./install/install.sh --uninstall` (`install.ps1 -Uninstall`). Your match history in `~/.tag-team` is kept.
 
 ## First match
 
