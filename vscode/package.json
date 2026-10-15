@@ -2,7 +2,7 @@
   "name": "tag-team",
   "displayName": "Tag Team Wrestling: Claude accounts",
   "description": "Your work and personal Claude accounts side by side: usage as fighting-game life bars, a retro match history of your token use, and one-click switching between them. Built on claude-swap.",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "publisher": "n1th1n-19",
   "license": "MIT",
   "icon": "media/icon.png",

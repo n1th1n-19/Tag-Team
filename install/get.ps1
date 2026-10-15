@@ -11,6 +11,13 @@ $Base = if ($env:TAGTEAM_BASE_URL) { $env:TAGTEAM_BASE_URL }
 $HomeDir = if ($env:TAGTEAM_HOME) { $env:TAGTEAM_HOME } else { Join-Path $env:USERPROFILE ".tag-team" }
 $Uninstall = $env:TAGTEAM_UNINSTALL -eq "1"
 function Say($m) { Write-Host "==> $m" -ForegroundColor Yellow }
+$script:StepN = 0
+function Step($label) {
+  $script:StepN++
+  $ProgressPreference = "Continue"
+  Write-Progress -Activity "Tag Team Wrestling: download" -Status "Step $($script:StepN) of 3: $label" -PercentComplete ([int](100 * ($script:StepN - 1) / 3))
+  Write-Host "[$("#" * $script:StepN)$("-" * (3 - $script:StepN))] $($script:StepN)/3 $label" -ForegroundColor Yellow
+}
 
 $Local = Join-Path $HomeDir "app\install\install.ps1"
 if ($Uninstall -and (Test-Path $Local)) {
@@ -23,14 +30,17 @@ $Asset = "tag-team-windows.zip"
 $Tmp = Join-Path ([IO.Path]::GetTempPath()) ("tag-team-" + [guid]::NewGuid())
 New-Item -ItemType Directory -Path $Tmp | Out-Null
 try {
-  Say "Downloading $Asset"
+  Step "Downloading $Asset"
   Invoke-WebRequest -UseBasicParsing -Uri "$Base/$Asset" -OutFile (Join-Path $Tmp $Asset)
   Invoke-WebRequest -UseBasicParsing -Uri "$Base/SHA256SUMS.txt" -OutFile (Join-Path $Tmp "SHA256SUMS.txt")
+  Step "Checking it against SHA256SUMS.txt"
   $Expected = (Get-Content (Join-Path $Tmp "SHA256SUMS.txt") | Where-Object { ($_ -split "\s+")[1].TrimStart("*") -eq $Asset } | ForEach-Object { ($_ -split "\s+")[0] }) | Select-Object -First 1
   if (-not $Expected) { throw "No checksum for $Asset in SHA256SUMS.txt; nothing was installed." }
   $Got = (Get-FileHash -Algorithm SHA256 (Join-Path $Tmp $Asset)).Hash.ToLower()
   if ($Got -ne $Expected.ToLower()) { throw "$Asset failed its checksum; nothing was installed." }
+  Step "Unpacking"
   Expand-Archive -Path (Join-Path $Tmp $Asset) -DestinationPath $Tmp -Force
+  $ProgressPreference = "Continue"; Write-Progress -Activity "Tag Team Wrestling: download" -Completed; $ProgressPreference = "SilentlyContinue"
   $Installer = Join-Path $Tmp "tag-team\install\install.ps1"
   if ($Uninstall) { powershell -NoProfile -ExecutionPolicy Bypass -File $Installer -Uninstall }
   else { powershell -NoProfile -ExecutionPolicy Bypass -File $Installer }
