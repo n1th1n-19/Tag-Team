@@ -40,7 +40,7 @@ TTY=0
 if [ -t 1 ] && [ "${TERM:-dumb}" != dumb ]; then TTY=1; fi
 bar() {
   local i out=""
-  for ((i = 1; i <= STEPS; i++)); do if [ "$i" -le "$STEP" ]; then out="$out■"; else out="$out□"; fi; done
+  for ((i = 1; i <= STEPS; i++)); do if [ "$i" -le "$STEP" ]; then out="${out}■"; else out="${out}□"; fi; done
   printf '[%s] %d/%d' "$out" "$STEP" "$STEPS"
 }
 step() {  # step "label" command...

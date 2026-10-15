@@ -19,7 +19,7 @@ TTY=0
 if [ -t 1 ] && [ "${TERM:-dumb}" != dumb ]; then TTY=1; fi
 bar() {
   local i out=""
-  for ((i = 1; i <= STEPS; i++)); do if [ "$i" -le "$STEP" ]; then out="$out■"; else out="$out□"; fi; done
+  for ((i = 1; i <= STEPS; i++)); do if [ "$i" -le "$STEP" ]; then out="${out}■"; else out="${out}□"; fi; done
   printf '[%s] %d/%d' "$out" "$STEP" "$STEPS"
 }
 fail() { say "$1 failed. The last lines of $LOG:"; tail -n 15 "$LOG" >&2; exit 1; }
@@ -76,8 +76,8 @@ fi
 
 # 1. uv (installs Python 3.12+ and the tools): a pinned release, checked against its SHA-256 before it runs.
 UV_VERSION="0.12.13"
-install_uv() {
-  local os arch target sha tmp
+install_uv() (  # a subshell, so its cleanup trap can't leak into the rest of the install
+  os="" arch="" target="" sha="" tmp=""
   os="$(uname -s)"; arch="$(uname -m)"
   case "$arch" in x86_64|amd64) arch=x86_64 ;; aarch64|arm64) arch=aarch64 ;; *) arch=unsupported ;; esac
   case "$os" in
@@ -95,19 +95,18 @@ install_uv() {
     *) say "No pinned uv build for $os/$(uname -m). Install uv yourself (https://docs.astral.sh/uv/), then re-run."; exit 1 ;;
   esac
   tmp="$(mktemp -d)"
-  trap 'rm -rf "$tmp"' RETURN
-  local url="https://github.com/astral-sh/uv/releases/download/$UV_VERSION/uv-$target.tar.gz"
+  trap 'rm -rf "$tmp"' EXIT
+  url="https://github.com/astral-sh/uv/releases/download/$UV_VERSION/uv-$target.tar.gz"
   if have curl; then curl --proto '=https' --tlsv1.2 -fsSL "$url" -o "$tmp/uv.tar.gz"
   elif have wget; then wget --https-only -qO "$tmp/uv.tar.gz" "$url"
   else say "Need curl or wget to download uv."; exit 1; fi
-  local got
+  got=""
   if have sha256sum; then got="$(sha256sum "$tmp/uv.tar.gz" | awk '{print $1}')"; else got="$(shasum -a 256 "$tmp/uv.tar.gz" | awk '{print $1}')"; fi
   if [ "$got" != "$sha" ]; then say "uv download failed its checksum ($got); nothing was installed."; exit 1; fi
   tar -xzf "$tmp/uv.tar.gz" -C "$tmp"
   mkdir -p "$HOME/.local/bin"
   install -m 0755 "$tmp/uv-$target/uv" "$tmp/uv-$target/uvx" "$HOME/.local/bin/"
-  export PATH="$HOME/.local/bin:$PATH"
-}
+)
 # 2-3. Old name out (its history in ~/.swap-me moves to ~/.tag-team the first time tagteam runs), then a
 # stable copy of the app, so deleting the downloaded folder doesn't break the plugin.
 setup_ring() {
