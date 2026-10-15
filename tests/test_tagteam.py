@@ -25,7 +25,7 @@ def _line(mid, req, ts, model="claude-opus-5-5", inp=10, out=20, cw=100, cw1h=40
 def _env(tmp: Path):
     os.environ["TAGTEAM_HOME"] = str(tmp / "tthome")
     os.environ["CLAUDE_CONFIG_DIR"] = str(tmp / "claude")
-    os.environ["HOME"] = str(tmp / "home")
+    os.environ["HOME"] = os.environ["USERPROFILE"] = str(tmp / "home")
     os.environ["XDG_DATA_HOME"] = str(tmp / "xdg")
 
 
@@ -131,7 +131,7 @@ def test_swap_me_history_moves_to_tag_team():
         tmp = Path(d)
         for k in ("TAGTEAM_HOME", "SWAPME_HOME"):
             os.environ.pop(k, None)
-        os.environ["HOME"] = str(tmp)
+        os.environ["HOME"] = os.environ["USERPROFILE"] = str(tmp)
         old = tmp / ".swap-me"
         (old / "cache").mkdir(parents=True)
         (old / "ledger.json").write_text('{"days": {"2026-01-01": {}}}')
@@ -181,8 +181,9 @@ def test_mascot_from_figma():
 
 def test_programs_in_the_current_folder_are_never_run():
     with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as other:
+        name = "tt-probe.bat" if sys.platform == "win32" else "tt-probe"
         for folder in (d, other):
-            exe = Path(folder) / "tt-probe"
+            exe = Path(folder) / name
             exe.write_text("#!/bin/sh\n")
             exe.chmod(0o755)
         saved_path, saved_cwd = os.environ.get("PATH", ""), os.getcwd()
@@ -191,7 +192,7 @@ def test_programs_in_the_current_folder_are_never_run():
             os.environ["PATH"] = f"{d}{os.pathsep}."
             assert accounts.find_exe("tt-probe") is None
             os.environ["PATH"] = other
-            assert accounts.find_exe("tt-probe") == str(Path(other) / "tt-probe")
+            assert Path(accounts.find_exe("tt-probe")).resolve() == (Path(other) / name).resolve()
         finally:
             os.environ["PATH"] = saved_path
             os.chdir(saved_cwd)
@@ -201,9 +202,12 @@ def test_ring_token_never_in_browser_argv():
     from tagteam import server
     url = "http://127.0.0.1:1234/#t=secret-token"
     uri = server._launcher(url)
-    path = Path(uri.removeprefix("file://"))
+    from urllib.parse import urlparse
+    from urllib.request import url2pathname
+    path = Path(url2pathname(urlparse(uri).path))
     assert "secret-token" not in uri
-    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    if sys.platform != "win32":
+        assert stat.S_IMODE(path.stat().st_mode) == 0o600
     assert json.dumps(url) in path.read_text()
     path.unlink()
 
