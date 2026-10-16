@@ -25,13 +25,11 @@ function rowsSVG(rows, scale = 4, title = "", recolor = {}) {
 function mascotSVG(name, scale = 4, title = "") { return rowsSVG(MASCOT.frames[name], scale, title || name); }
 
 /** One wrestler cut from the icon: "red" (left) or "blue" (right), for portraits. */
-// Trunk colors for a bigger roster: partner N wears TRUNKS[(N - 1) % 6], so a lineup of four doesn't look like two pairs of twins.
-const TRUNKS = [["#d94141", "#a82f2f"], ["#3f6fd1", "#2c4f9c"], ["#5fc25a", "#3d8a3a"], ["#f0913a", "#b8661f"], ["#2bb3a6", "#1d7f76"], ["#e05fa0", "#a83f74"]];
-/** One wrestler cut from the icon: "red" (left) or "blue" (right), for portraits; pass a partner number for its own trunks. */
-function partnerSVG(side, scale = 3, title = "", number = 0) {
+/** One wrestler cut from the icon: "red" (left) or "blue" (right), for portraits. `trunks` ({color, shade}, from
+ * tagteam state) dresses them in that partner's own colors, so every account in the roster looks different. */
+function partnerSVG(side, scale = 3, title = "", trunks = null) {
   const red = side === "red";
-  const [main, shade] = TRUNKS[(Math.max(number, 1) - 1) % TRUNKS.length];
-  const recolor = number ? (red ? { B: main, y: shade } : { w: main, Y: shade }) : {};
+  const recolor = trunks ? (red ? { B: trunks.color, y: trunks.shade } : { w: trunks.color, Y: trunks.shade }) : {};
   return rowsSVG(MASCOT.frames[red ? "mascot/red" : "mascot/blue"], scale, title, recolor);
 }
 

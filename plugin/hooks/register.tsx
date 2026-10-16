@@ -267,8 +267,10 @@ async function overview($: any, ui: any, e: any, s: Snapshot, width: number) {
     return (
       <Box key={`acct-${a.number}`} flexDirection="row" flexWrap="wrap" gap={1} alignItems="center">
         <Text bold={a.active} color={a.nearLimit ? 'warning' : a.active ? 'success' : undefined}>
-          {a.active ? '▶ [IN]   ' : a.disabled ? '  [BENCH]' : '  [APRON]'} {a.label.slice(0, 16).padEnd(16)}
+          {a.active ? '▶ [IN]   ' : a.disabled ? '  [BENCH]' : '  [APRON]'}
         </Text>
+        {a.trunks && <Text color={a.trunks.color}>■</Text>}
+        <Text bold={a.active} color={a.nearLimit ? 'warning' : a.active ? 'success' : undefined}>{a.label.slice(0, 16).padEnd(16)}</Text>
         <Text color={a.nearLimit ? 'warning' : undefined}>{meters}</Text>
         <Text dimColor>tonight {fmt(a.tokens.today.total)} · month {fmt(a.tokens.month.total)}{a.liveSessions ? ` · ${a.liveSessions} in progress` : ''}{five?.countdown ? ` · stamina back in ${five.countdown}` : ''}</Text>
         {a.active

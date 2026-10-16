@@ -98,7 +98,9 @@ Uninstall: the one-liner above, or `./install/install.sh --uninstall` (`install.
 
 ### Three or more partners
 
-The roster has no fixed size: sign as many accounts as you hold, and each gets its own card, life bars and trunk color in the ring.
+The roster has no fixed size: sign as many accounts as you hold, and each gets its own card and life bars in the ring.
+
+- **Their own trunks.** Every account you sign gets its own color of shorts on its mascot: twelve hand-picked colors, then generated ones, so no two partners ever match. The color belongs to the account, not its spot: it stays through `tagteam move`, a released partner's color isn't handed to a newcomer, and re-signing an account brings its old color back. The same color marks the partner in the terminal ring card and the Claude Code pane.
 
 - **Who's next.** The hot tag (`tagteam tag-out`, *Hot tag: best*) picks the partner with the most stamina left. With three or more partners you can also tag the **next in line** instead: `tagteam tag-out --next`, `/tag-out next` in Claude Code, or the *Next in line* button next to TAG ME. It follows the lineup order and skips anyone at their limit.
 - **Lineup order.** The lineup is the partner numbers (`tagteam roster`). `tagteam move side-project 1` puts a partner first; moving onto a taken spot swaps the two. Each partner's match history moves with them.

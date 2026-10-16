@@ -148,7 +148,9 @@ def print_ring_card(s: dict, account: str = "all") -> None:
             bars = f"{r.get('usageStatus', '?').replace('_', ' '):<56}"
         else:
             bars = f"STAMINA {life_bar(five, color)} {five or 0:>3.0f}%  ENDURANCE {life_bar(seven, color, 12)} {seven or 0:>3.0f}%"
-        print(f" {cursor} {badge} {r['number']:>2} {r['label'][:16]:<16} {bars}  tonight {fmt_tokens(r['tokens']['today']['total']):>6}{live}{ko}")
+        hexed = (r.get("trunks") or {}).get("color", "#a9a6b8").lstrip("#")
+        trunks = _rgb("■", tuple(int(hexed[k:k + 2], 16) for k in (0, 2, 4)), color) if color else ""
+        print(f" {cursor} {badge} {r['number']:>2} {trunks}{' ' if trunks else ''}{r['label'][:16]:<16} {bars}  tonight {fmt_tokens(r['tokens']['today']['total']):>6}{live}{ko}")
     for a in s["alerts"]:
         if a["kind"] == "near-limit":
             tip = f"  TAG ME → `tagteam tag-out`" + (f" ({a['suggest']['label']} is fresh, {a['suggest']['pct']:.0f}%)" if a.get("suggest") else "")

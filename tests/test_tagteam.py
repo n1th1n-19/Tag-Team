@@ -376,6 +376,22 @@ def test_next_in_line_uses_cswaps_lineup_rotation():
     assert sent == [("switch", "--strategy", "next-available", "--json"), ("switch", "--strategy", "best", "--json"), ("switch", "2", "--json")]
 
 
+def test_every_account_keeps_its_own_trunk_color():
+    from tagteam import state
+    with tempfile.TemporaryDirectory() as d:
+        _env(Path(d))
+        rows = [{"number": n, "email": f"p{n}@x"} for n in (1, 2, 3)]
+        state.assign_trunks(rows)
+        assert [r["trunks"]["index"] for r in rows] == [0, 1, 2]
+        # p3 moves to slot 1 and p1 is released; a newcomer gets a fresh color, not p1's
+        later = [{"number": 1, "email": "p3@x"}, {"number": 2, "email": "p2@x"}, {"number": 3, "email": "p4@x"}]
+        state.assign_trunks(later)
+        assert [r["trunks"]["index"] for r in later] == [2, 1, 3]
+        many = [{"number": n, "email": f"q{n}@x"} for n in range(20)]
+        state.assign_trunks(many)
+        assert len({r["trunks"]["color"] for r in many}) == 20
+
+
 def test_score_note_splits_cache_reads():
     from tagteam.cli import score_note
     assert score_note({"total": 0}) == "Claude Code on this computer only"
