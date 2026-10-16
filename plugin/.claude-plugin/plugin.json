@@ -1,6 +1,6 @@
 {
   "name": "tag-team",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "Tag Team Wrestling: Your work and personal Claude accounts side by side: usage as fighting-game life bars, a retro match history of your token use, and one-click switching between them. Built on claude-swap.",
   "author": {
     "name": "n1th1n-19"

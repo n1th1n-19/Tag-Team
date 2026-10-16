@@ -11,7 +11,7 @@ body:
     attributes:
       label: Versions
       description: Output of `tagteam --version` and `cswap --version`
-      placeholder: tagteam 0.4.4, cswap 0.27.1
+      placeholder: tagteam 0.4.5, cswap 0.27.1
     validations:
       required: true
   - type: dropdown
