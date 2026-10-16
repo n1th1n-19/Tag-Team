@@ -22,10 +22,12 @@ case "$(uname -s)" in
   *) die "Unsupported system $(uname -s). On Windows use: irm https://github.com/$REPO/releases/latest/download/get.ps1 | iex" ;;
 esac
 
-fetch() {
+fetch() {  # a stalled connection gives up and retries instead of hanging
   if have curl; then
-    if [ "${BASE#https://}" != "$BASE" ]; then curl --proto '=https' --tlsv1.2 -fsSL "$1" -o "$2"; else curl -fsSL "$1" -o "$2"; fi
-  elif have wget; then wget -qO "$2" "$1"
+    local opts=(-fSL --progress-bar --connect-timeout 20 --retry 3 --speed-limit 1024 --speed-time 30)
+    if [ "${BASE#https://}" != "$BASE" ]; then opts+=(--proto '=https' --tlsv1.2); fi
+    curl "${opts[@]}" "$1" -o "$2"
+  elif have wget; then wget -qO "$2" --timeout=30 --tries=3 "$1"
   else die "Need curl or wget."; fi
 }
 
@@ -38,12 +40,12 @@ STEP=0
 STEPS=3
 TTY=0
 if [ -t 1 ] && [ "${TERM:-dumb}" != dumb ]; then TTY=1; fi
-WATCH=""; WATCH_SIZE=0  # while a download step runs: the file being written and its full size
-pct() {  # finished steps, plus how far the current one is (by bytes when a download is being watched)
-  local frac=0 size
-  if [ -n "$WATCH" ] && [ "$WATCH_SIZE" -gt 0 ] && [ -f "$WATCH" ]; then
-    size=$(wc -c <"$WATCH" | tr -d ' ')
-    frac=$((size * 100 / WATCH_SIZE)); [ "$frac" -gt 100 ] && frac=100
+WATCH=0  # 1 while a download step runs: curl's own progress bar (written to $LOG) gives that step's share
+pct() {  # finished steps, plus how far the current download is
+  local frac=0 last=""
+  if [ "$WATCH" = 1 ]; then
+    last="$(tail -c 200 "$LOG" 2>/dev/null | tr '\r' '\n' | grep -o '[0-9][0-9]*\.[0-9]%' | tail -n 1 || true)"
+    [ -n "$last" ] && frac="${last%%.*}"
   fi
   echo $((((STEP - 1) * 100 + frac) / STEPS))
 }
@@ -79,10 +81,6 @@ step() {  # step "label" command...
 }
 
 download() { fetch "$BASE/$ASSET" "$TMP/$ASSET" && fetch "$BASE/SHA256SUMS.txt" "$TMP/SHA256SUMS.txt"; }
-remote_size() {  # the download's size after redirects (for the percentage), 0 when unknown
-  have curl || { echo 0; return; }
-  curl -fsIL "$1" 2>/dev/null | awk 'tolower($1) == "content-length:" { gsub("\r", "", $2); n = $2 } END { print n + 0 }'
-}
 verify() {
   local expected got
   expected="$(awk -v f="$ASSET" '$2 == f || $2 == "*"f { print $1 }' "$TMP/SHA256SUMS.txt")"
@@ -97,10 +95,9 @@ unpack() {
   chmod +x "$TMP/tag-team/install/install.sh"
 }
 
-WATCH="$TMP/$ASSET"
-WATCH_SIZE="$(remote_size "$BASE/$ASSET")"
+WATCH=1
 step "Downloading $ASSET" download
-WATCH=""
+WATCH=0
 step "Checking it against SHA256SUMS.txt" verify
 step "Unpacking" unpack
 

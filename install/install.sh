@@ -17,12 +17,12 @@ STEP=0
 STEPS=1
 TTY=0
 if [ -t 1 ] && [ "${TERM:-dumb}" != dumb ]; then TTY=1; fi
-WATCH=""; WATCH_SIZE=0  # while a download step runs: the file being written and its full size
-pct() {  # finished steps, plus how far the current one is (by bytes when a download is being watched)
-  local frac=0 size
-  if [ -n "$WATCH" ] && [ "$WATCH_SIZE" -gt 0 ] && [ -f "$WATCH" ]; then
-    size=$(wc -c <"$WATCH" | tr -d ' ')
-    frac=$((size * 100 / WATCH_SIZE)); [ "$frac" -gt 100 ] && frac=100
+WATCH=0  # 1 while a download step runs: curl's own progress bar (written to $LOG) gives that step's share
+pct() {  # finished steps, plus how far the current download is
+  local frac=0 last=""
+  if [ "$WATCH" = 1 ]; then
+    last="$(tail -c 200 "$LOG" 2>/dev/null | tr '\r' '\n' | grep -o '[0-9][0-9]*\.[0-9]%' | tail -n 1 || true)"
+    [ -n "$last" ] && frac="${last%%.*}"
   fi
   echo $((((STEP - 1) * 100 + frac) / STEPS))
 }
@@ -117,8 +117,8 @@ install_uv() (  # a subshell, so its cleanup trap can't leak into the rest of th
   tmp="$(mktemp -d)"
   trap 'rm -rf "$tmp"' EXIT
   url="https://github.com/astral-sh/uv/releases/download/$UV_VERSION/uv-$target.tar.gz"
-  if have curl; then curl --proto '=https' --tlsv1.2 -fsSL "$url" -o "$tmp/uv.tar.gz"
-  elif have wget; then wget --https-only -qO "$tmp/uv.tar.gz" "$url"
+  if have curl; then curl --proto '=https' --tlsv1.2 -fsSL --connect-timeout 20 --retry 3 --speed-limit 1024 --speed-time 30 "$url" -o "$tmp/uv.tar.gz"
+  elif have wget; then wget --https-only -qO "$tmp/uv.tar.gz" --timeout=30 --tries=3 "$url"
   else say "Need curl or wget to download uv."; exit 1; fi
   got=""
   if have sha256sum; then got="$(sha256sum "$tmp/uv.tar.gz" | awk '{print $1}')"; else got="$(shasum -a 256 "$tmp/uv.tar.gz" | awk '{print $1}')"; fi

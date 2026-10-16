@@ -327,6 +327,19 @@ def test_cleanup_keeps_the_two_newest_plugin_copies():
         assert not stale.exists() and (tmp / "tag-team-update-new").exists()
 
 
+def test_get_sh_fails_fast_when_the_download_is_unreachable():
+    import shutil, subprocess, sys as _sys
+    bash = shutil.which("bash")
+    if _sys.platform.startswith("win") or not bash:
+        return
+    root = Path(__file__).resolve().parents[1]
+    env = {**os.environ, "TAGTEAM_BASE_URL": "http://127.0.0.1:9"}  # nothing listens on port 9
+    t = time.time()
+    proc = subprocess.run([bash, str(root / "install" / "get.sh")], env=env, capture_output=True, text=True, timeout=120)
+    assert proc.returncode != 0 and "nothing was installed" in proc.stdout + proc.stderr, proc
+    assert time.time() - t < 60
+
+
 def test_score_note_splits_cache_reads():
     from tagteam.cli import score_note
     assert score_note({"total": 0}) == "Claude Code on this computer only"
