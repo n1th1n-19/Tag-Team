@@ -13,9 +13,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from tagteam import accounts, art, cli, store, tokens  # noqa: E402
 
 
-def _line(mid, req, ts, model="claude-opus-5-5", inp=10, out=20, cw=100, cw1h=40, cr=1000, cwd="/w/proj"):
+def _line(mid, req, ts, model="claude-opus-5-5", inp=10, out=20, cw=100, cw1h=40, cr=1000, cwd="/w/proj", sid=""):
     return json.dumps({
-        "type": "assistant", "timestamp": ts, "requestId": req, "cwd": cwd,
+        "type": "assistant", "timestamp": ts, "requestId": req, "cwd": cwd, "sessionId": sid,
         "message": {"id": mid, "model": model, "usage": {
             "input_tokens": inp, "output_tokens": out, "cache_creation_input_tokens": cw,
             "cache_creation": {"ephemeral_1h_input_tokens": cw1h}, "cache_read_input_tokens": cr}},
@@ -55,6 +55,29 @@ def test_scan_dedupes_and_is_incremental():
             fh.write(_line("m2", "r2", "2026-10-02T10:00:00Z") + "\n")
         rows = tokens.scan()
         assert sorted(r[0][0] for r in rows) == ["m1:r1", "m2:r2"]
+
+
+def test_matches_group_by_session_with_subagents_and_titles():
+    with tempfile.TemporaryDirectory() as d:
+        tmp = Path(d)
+        _env(tmp)
+        proj = tmp / "claude" / "projects" / "p"
+        (proj / "s1" / "subagents").mkdir(parents=True)
+        (proj / "s1.jsonl").write_text("\n".join([
+            _line("m1", "r1", "2026-10-10T10:00:00Z", sid="s1"),
+            json.dumps({"type": "ai-title", "aiTitle": "Fix the login form", "sessionId": "s1"}),
+            _line("m2", "r2", "2026-10-10T11:30:00Z", sid="s1"),
+        ]) + "\n")
+        (proj / "s1" / "subagents" / "agent-a.jsonl").write_text(_line("m3", "r3", "2026-10-10T11:00:00Z", sid="s1") + "\n")
+        (proj / "s2.jsonl").write_text(_line("m4", "r4", "2026-09-01T10:00:00Z", sid="s2") + "\n")  # too old
+        titles: dict = {}
+        rows = tokens.scan(titles=titles)
+        since = datetime(2026, 10, 5, tzinfo=timezone.utc).timestamp()
+        matches = tokens.by_session(rows, [], "1", titles, None, since)
+        assert [m["id"] for m in matches] == ["s1"], matches
+        m = matches[0]
+        assert m["title"] == "Fix the login form" and m["messages"] == 3 and m["account"] == "1"
+        assert m["total"] == 3 * 1130 and m["fresh"] == 3 * 130 and m["end"] - m["start"] == 5400
 
 
 def test_attribution_and_buckets():

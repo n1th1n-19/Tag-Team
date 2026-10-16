@@ -125,7 +125,7 @@ def live_sessions(active_number: str | None) -> list[dict]:
             continue
         for s in sessions:
             out.append({"pid": s.pid, "account": number, "profile": kind, "cwd": s.cwd or "",
-                        "kind": s.kind, "entrypoint": s.entrypoint, "status": s.status,
+                        "kind": s.kind, "entrypoint": s.entrypoint, "status": s.status, "sessionId": getattr(s, "session_id", ""),
                         "startedAt": s.started_at})
     return out
 

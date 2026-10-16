@@ -31,6 +31,7 @@ Built on [claude-swap](https://github.com/realiti4/claude-swap) (`cswap`). Works
 ## What you get
 
 - **The ring** (retro pixel-art dashboard): the mascot on an attract screen, an arcade **score** of your career tokens, every partner as a character-select card with stamina and endurance life bars and a K.O. stamp, a year of match history (cold → hot), high scores by month, your moveset (models) and venues (projects), and matches in progress.
+- **Match cards**: tokens per Claude Code session for the last 7 days, with its title, partner, length, fresh tokens and purse (subagents count toward their session). Running sessions are marked **LIVE**, and the Claude Code pane shows **THIS MATCH** for the session it's open in.
 - **TAG ME**, wherever you are:
   - *Editors*: the status bar `[IN] work ▮▮▮▯▯ 41%` turns into a red **TAG ME** button (one click tags out), with a notification offering *TAG ME > partner*, *Hot tag: best* and *Open the ring*.
   - *Claude Code terminal*: a **REACH FOR THE TAG!** bar above the prompt with a TAG ME button.
@@ -132,7 +133,7 @@ tagteam statusline               # for Claude Code's statusLine setting
 | Number | Source | Covers |
 |---|---|---|
 | Stamina, endurance, TAG ME | Anthropic's usage API, through claude-swap | **All of Claude** on that account: chat (web, desktop, mobile), Claude Code (terminal, IDE, desktop, web), Claude Design, Cowork and other Claude apps |
-| Score, match history, purse, streaks | Claude Code transcripts on this computer | **Claude Code on this computer only**: the terminal, VS Code / Cursor / JetBrains, and Agent SDK apps. Claude chat, Claude Design, Cowork and Claude Code on the web leave no local log. |
+| Score, match history, match cards, purse, streaks | Claude Code transcripts on this computer | **Claude Code on this computer only**: the terminal, VS Code / Cursor / JetBrains, and Agent SDK apps. Claude chat, Claude Design, Cowork and Claude Code on the web leave no local log. |
 
 Most of the score is usually **cache reads**: every turn, Claude Code re-sends the conversation so far, and the API serves it from cache. The ring shows that share and the **fresh** tokens (input, output and cache writes) under the score.
 

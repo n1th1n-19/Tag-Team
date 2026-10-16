@@ -251,6 +251,8 @@ async function overview($: any, ui: any, e: any, s: Snapshot, width: number) {
   const hm = (s.tokens.heatmap[key] ?? s.tokens.heatmap.all)!
   const t = (s.tokens.totals[key] ?? s.tokens.totals.all)!
   const barW = width >= 90 ? 16 : 10
+  const sid = await $.session.id().catch(() => '')
+  const cur = sid ? s.tokens.matches?.find(x => x.id === sid) : undefined
 
   const lanes = s.accounts.map(a => {
     const u = usageOf(a)
@@ -303,6 +305,7 @@ async function overview($: any, ui: any, e: any, s: Snapshot, width: number) {
       </Box>
       <Text><Text bold color="warning">SCORE {String(Math.round(t.lifetime.total)).padStart(12, '0').replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</Text> · tonight <Text bold>{fmt(t.today.total)}</Text> ({money(t.today.cost)}) · this month <Text bold>{fmt(t.month.total)}</Text> ({money(t.month.cost)}) · purse {money(t.lifetime.cost)} · last hour {fmt(s.tokens.burnPerHour)}</Text>
       <Text dimColor>{scoreNote(t.lifetime)}</Text>
+      {cur && <Text><Text bold color="warning">THIS MATCH</Text> <Text bold>{fmt(cur.total)}</Text> tokens ({fmt(cur.fresh)} fresh) · {money(cur.cost)} · {cur.messages} turns{cur.title ? ` · ${cur.title}` : ''}</Text>}
       <Box flexDirection="column">
         <Text bold>HIGH SCORES · MONTHS</Text>
         {months.map(x => <Text key={`mo-${x.month}`}>{x.month}  {bar((x[m] / maxMonth) * 100, 24)}  {m === 'cost' ? money(x.cost) : fmt(x[m])}</Text>)}

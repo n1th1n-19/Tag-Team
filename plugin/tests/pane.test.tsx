@@ -26,6 +26,16 @@ const PANE_PROPS = {
 }
 
 describe('tag-team ring', () => {
+  test('shows THIS MATCH for the session the pane runs in', async ($: any, on: any) => {
+    fakeTagteam(on)
+    on('session.id', () => ({ value: 'sess-1' }))
+    await $.command.run({ command: 'tag-team', args: '' })
+    const ui = await $.ui.mount({ plugin: 'tag-team', surface: 'terminal', component: 'Pane', requestId: 'tag-team', props: PANE_PROPS })
+    expect(await ui.find({ text: /THIS MATCH/ })).toBeDefined()
+    expect(await ui.find({ text: /Fix the login form/ })).toBeDefined()
+    await ui.unmount()
+  })
+
   test('draws accounts, heatmap and switches on press, on every surface', async ($: any, on: any) => {
     fakeTagteam(on)
     await $.command.run({ command: 'tag-team', args: '' })

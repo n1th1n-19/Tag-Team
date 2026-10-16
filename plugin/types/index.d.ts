@@ -8,6 +8,10 @@ export type Heatmap = {
   start: string; cells: HeatCell[]; yearTotal: number; yearCost: number; activeDays: number
   streak: number; longestStreak: number; busiest: { date: string; total: number } | null
 }
+export type Match = {
+  id: string; title: string; project: string; account: string; model: string; start: number; end: number
+  total: number; fresh: number; cacheRead: number; cost: number; messages: number; live?: boolean
+}
 export type Account = {
   number: number; email: string; label: string; alias?: string; active: boolean; disabled?: boolean
   usageStatus: string; usage: Usage | null; lastGoodUsage?: Usage; peakPct: number | null
@@ -25,6 +29,7 @@ export type Snapshot = {
     totals: Record<string, Totals>; heatmap: Record<string, Heatmap>
     monthly: Record<string, { month: string; total: number; output: number; cost: number }[]>
     models: (Sum & { model: string })[]; projects: { project: string; total: number }[]; burnPerHour: number
+    matches?: Match[]
   }
   alerts: Alert[]
   rules?: string

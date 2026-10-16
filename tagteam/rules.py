@@ -21,6 +21,7 @@ Tag Team does that for your Claude accounts:
   ring name         an alias            match history   your daily token use, a year at a glance
                     (life bars count all of Claude; match history counts Claude Code on this computer)
   career            all-time totals     purse           estimated API price of those tokens
+  match card        one Claude Code session: its tokens, fresh tokens and purse
   before the bell   usage from before Tag Team started keeping score
 
 Tag Team uses generic wrestling words; it isn't connected to any wrestling company

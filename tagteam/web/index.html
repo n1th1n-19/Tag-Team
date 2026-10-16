@@ -97,6 +97,10 @@ nav.tabs button[aria-selected="true"] { background: var(--gold); color: #1b1d2b;
 @keyframes worn { to { opacity: .35; } }
 .cursor { color: var(--hi); }
 
+/* match cards */
+.live { background: var(--red); color: #fff; padding: 0 4px; }
+#matches td.n { white-space: nowrap; }
+@media (max-width: 600px) { #matches tr > :nth-child(2), #matches tr > :nth-child(5) { display: none; } }
 /* match history */
 .history .head { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 10px; }
 .history .head .grow { flex: 1; }
@@ -192,6 +196,12 @@ footer { margin-top: 26px; font-size: 19px; color: var(--muted); }
         <span class="muted" title="Counts Claude Code on this computer: the terminal, VS Code / Cursor / JetBrains, and Agent SDK apps. Claude chat, Claude Design, Cowork and Claude Code on the web run on Anthropic's servers and leave no local log, so they aren't counted.">Claude Code on this computer only</span>
         <span class="legend">Cold <i style="background:var(--h0)"></i><i style="background:var(--h1)"></i><i style="background:var(--h2)"></i><i style="background:var(--h3)"></i><i style="background:var(--h4)"></i> Hot</span>
       </div>
+    </div>
+
+    <div class="box" style="margin-bottom:14px">
+      <h2>MATCH CARDS · SESSIONS, 7 DAYS</h2>
+      <div class="scroll"><table id="matches"></table></div>
+      <div class="muted" style="margin-top:6px">One Claude Code session per row, subagents included. Fresh = everything but cache reads.</div>
     </div>
 
     <div class="cols">
@@ -374,7 +384,15 @@ function showDay() {
   $("dayInfo").textContent = c ? `${new Date(c.date + "T00:00").toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}: ${fmt(c.total)} tokens, ${fmt(c.output)} output, purse ${money(c.cost)}` : "Pick a night to see its card.";
 }
 
+const dur = s => s < 3600 ? `${Math.max(1, Math.round(s / 60))}m` : `${Math.floor(s / 3600)}h ${Math.round((s % 3600) / 60)}m`;
 function renderTables() {
+  const names = Object.fromEntries(S.accounts.map(a => [String(a.number), a.label]));
+  $("matches").innerHTML = `<tr><th>Match</th><th>Partner</th><th>When</th><th class="n">Tokens</th><th class="n">Fresh</th><th class="n">Purse</th></tr>` +
+    ((S.tokens.matches || []).map(m => `<tr><td>${m.live ? `<b class="live">LIVE</b> ` : ""}${esc(m.title || m.project || "untitled")}<div class="muted">${esc(m.project)} · ${esc(m.model)} · ${m.messages} turns</div></td>` +
+      `<td>${esc(names[m.account] || (m.account === "?" ? "before the bell" : m.account))}</td>` +
+      `<td>${new Date(m.start * 1000).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" })}<div class="muted">${dur(m.end - m.start)}</div></td>` +
+      `<td class="n">${fmt(m.total)}</td><td class="n">${fmt(m.fresh)}</td><td class="n">${money(m.cost)}</td></tr>`).join("") ||
+      `<tr><td colspan="6" class="muted">No matches in the last 7 days</td></tr>`);
   $("models").innerHTML = `<tr><th>Move</th><th class="n">Tokens</th><th class="n">Purse</th></tr>` +
     (S.tokens.models.map(m => `<tr><td>${esc(m.model)}</td><td class="n">${fmt(m.total)}</td><td class="n">${money(m.cost)}</td></tr>`).join("") || `<tr><td colspan="3" class="muted">No moves yet</td></tr>`);
   $("projects").innerHTML = `<tr><th>Venue</th><th class="n">Tokens</th></tr>` +

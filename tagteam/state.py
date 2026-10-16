@@ -64,6 +64,9 @@ def build() -> dict:
     known = [str(r["number"]) for r in rows]
     tok = tokens.compute(store.timeline(), known, cfg.get("pricing"))
     sessions = accounts.live_sessions(str(active_row["number"]) if active_row else None)
+    live_ids = {s["sessionId"] for s in sessions if s.get("sessionId")}
+    for m in tok["matches"]:
+        m["live"] = m["id"] in live_ids
 
     for r in rows:
         num = str(r["number"])

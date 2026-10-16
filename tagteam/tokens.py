@@ -33,7 +33,7 @@ PRICING: dict[str, tuple[float, float, float]] = {
 }
 
 UNATTRIBUTED = "?"  # shown as "before the bell": usage from before tracking began
-# Row = [key, ts, model, input, output, cache_write_5m, cache_write_1h, cache_read, project]
+# Row = [key, ts, model, input, output, cache_write_5m, cache_write_1h, cache_read, project, session]
 _IN, _OUT, _CW5, _CW1, _CR = 3, 4, 5, 6, 7
 _SESSION_DIR = re.compile(r"^(\d+)-")
 
@@ -96,7 +96,21 @@ def parse_line(line: str) -> list | None:
         int(cw1),
         int(usage.get("cache_read_input_tokens") or 0),
         Path(cwd).name if cwd else "",
+        str(d.get("sessionId") or ""),
     ]
+
+
+def parse_title(line: str) -> tuple[str, str] | None:
+    """(session id, title) from Claude Code's ai-title lines."""
+    if '"ai-title"' not in line:
+        return None
+    try:
+        d = json.loads(line)
+    except ValueError:
+        return None
+    if d.get("type") != "ai-title" or not d.get("sessionId") or not d.get("aiTitle"):
+        return None
+    return str(d["sessionId"]), str(d["aiTitle"])[:120]
 
 
 def transcript_roots() -> list[tuple[Path, str | None]]:
@@ -113,11 +127,15 @@ def transcript_roots() -> list[tuple[Path, str | None]]:
     return roots
 
 
-def scan(cache_path: Path | None = None) -> list[tuple[list, str | None]]:
-    """All deduped rows with account hints; files that only grew are read from their last offset."""
+SCAN_VERSION = 2  # rows gained the session id; older caches are rebuilt
+
+
+def scan(cache_path: Path | None = None, titles: dict | None = None) -> list[tuple[list, str | None]]:
+    """All deduped rows with account hints; files that only grew are read from their last offset.
+    Session titles are collected into ``titles`` when given."""
     cache_path = cache_path or store.home() / "cache" / "scan.json"
     cache = store.read_json(cache_path, {})
-    files = cache.get("files", {})
+    files = cache.get("files", {}) if cache.get("v") == SCAN_VERSION else {}
     seen_paths = set()
     out: dict[str, tuple[list, str | None]] = {}
     for root, hint in transcript_roots():
@@ -132,24 +150,31 @@ def scan(cache_path: Path | None = None) -> list[tuple[list, str | None]]:
                 continue
             entry = files.get(key)
             if entry and entry["size"] == st.st_size and entry["mtime"] == st.st_mtime_ns:
-                rows = entry["rows"]
+                rows, named = entry["rows"], entry.get("titles", {})
             else:
                 start = entry["size"] if entry and st.st_size > entry["size"] else 0
                 rows = entry["rows"] if start else []
+                named = dict(entry.get("titles", {})) if start else {}
                 try:
                     with open(path, "rb") as f:
                         f.seek(start)
                         for raw in f:
-                            row = parse_line(raw.decode("utf-8", "replace"))
+                            line = raw.decode("utf-8", "replace")
+                            row = parse_line(line)
                             if row:
                                 rows.append(row)
+                            elif (t := parse_title(line)):
+                                named[t[0]] = t[1]
                 except OSError:
                     continue
-                files[key] = {"size": st.st_size, "mtime": st.st_mtime_ns, "rows": rows}
+                files[key] = {"size": st.st_size, "mtime": st.st_mtime_ns, "rows": rows, "titles": named}
+            if titles is not None:
+                titles.update(named)
             for row in rows:
                 if row[0] not in out or row[1] < out[row[0]][0][1]:
                     out[row[0]] = (row, hint)
     cache["files"] = {k: v for k, v in files.items() if k in seen_paths}
+    cache["v"] = SCAN_VERSION
     store.write_json(cache_path, cache)
     return list(out.values())
 
@@ -310,6 +335,33 @@ def by_project(rows: list[tuple[list, str | None]], since_ts: float, limit: int 
     return [{"project": k, "total": v} for k, v in top]
 
 
+def by_session(rows: list[tuple[list, str | None]], timeline: list[dict], fallback: str, titles: dict,
+               pricing: dict | None, since_ts: float, limit: int = 10) -> list[dict]:
+    """Recent matches: one Claude Code session each (subagents included), newest first."""
+    timeline = sorted(timeline, key=lambda e: e["ts"])
+    agg: dict[str, dict] = {}
+    for row, hint in rows:
+        sid = row[9] if len(row) > 9 else ""
+        if not sid:
+            continue
+        m = agg.setdefault(sid, {"id": sid, "title": titles.get(sid, ""), "project": row[8], "start": row[1], "end": row[1],
+                                 "total": 0, "cacheRead": 0, "cost": 0.0, "messages": 0, "hint": hint, "models": {}})
+        m["start"], m["end"] = min(m["start"], row[1]), max(m["end"], row[1])
+        m["total"] += row_total(row)
+        m["cacheRead"] += row[_CR]
+        m["cost"] += row_cost(row, pricing)
+        m["messages"] += 1
+        m["models"][row[2]] = m["models"].get(row[2], 0) + row_total(row)
+        m["hint"] = m["hint"] or hint
+    out = sorted((m for m in agg.values() if m["end"] >= since_ts), key=lambda m: m["end"], reverse=True)[:limit]
+    for m in out:
+        m["account"] = m.pop("hint") or attribute(m["start"], timeline, fallback)
+        m["model"] = max(m.pop("models").items(), key=lambda kv: kv[1])[0]
+        m["fresh"] = m["total"] - m["cacheRead"]
+        m["cost"] = round(m["cost"], 4)
+    return out
+
+
 def burn_rate(rows: list[tuple[list, str | None]], now: float) -> int:
     """Tokens in the last 60 minutes."""
     return sum(row_total(r) for r, _ in rows if r[1] >= now - 3600)
@@ -320,7 +372,8 @@ def compute(timeline: list[dict], known_accounts: list[str], pricing: dict | Non
     """Scan, merge into the ledger, and build every view the UIs draw."""
     today = today or date.today()
     now = now or time.time()
-    rows = scan()
+    titles: dict = {}
+    rows = scan(titles=titles)
     fresh = bucket(rows, timeline, known_accounts, pricing)
     ledger_path = store.home() / "ledger.json"
     ledger = merge_ledger(store.read_json(ledger_path, {}), fresh)
@@ -335,6 +388,8 @@ def compute(timeline: list[dict], known_accounts: list[str], pricing: dict | Non
         "models": by_model(days, None, (today - timedelta(days=30)).isoformat()),
         "projects": by_project(rows, now - 30 * 86400),
         "burnPerHour": burn_rate(rows, now),
+        "matches": by_session(rows, timeline, known_accounts[0] if len(known_accounts) == 1 else UNATTRIBUTED,
+                              titles, pricing, now - 7 * 86400),
     }
 
 

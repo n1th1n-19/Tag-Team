@@ -126,6 +126,15 @@ def print_ring_card(s: dict, account: str = "all") -> None:
     print(bold(f"MATCH HISTORY  {fmt_tokens(hm['yearTotal'])} tokens in the last year") + f"  ({HISTORY_SOURCE})")
     print(heatmap_text(hm, color))
     print()
+    if tok.get("matches"):
+        names = {str(r["number"]): r["label"] for r in s["accounts"]}
+        print(bold("MATCH CARDS") + "  (sessions, last 7 days)")
+        for m in tok["matches"][:5]:
+            live = gold("LIVE ") if m.get("live") else "     "
+            mins = max(1, round((m["end"] - m["start"]) / 60))
+            print(f" {live}{(m['title'] or m['project'] or 'untitled')[:38]:<38} {names.get(m['account'], m['account'])[:10]:<10} "
+                  f"{f'{mins // 60}h {mins % 60:02d}m' if mins >= 60 else f'{mins}m':>7}  {fmt_tokens(m['total']):>6} ({fmt_tokens(m['fresh'])} fresh)  ${m['cost']:.2f}")
+        print()
     print(bold("ROSTER") + f"  ({BARS_SOURCE})")
     for r in s["accounts"]:
         u = r.get("usage") or r.get("lastGoodUsage") or {}
