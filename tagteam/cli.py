@@ -154,7 +154,7 @@ def print_ring_card(s: dict, account: str = "all") -> None:
             tip = f"  TAG ME → `tagteam tag-out`" + (f" ({a['suggest']['label']} is fresh, {a['suggest']['pct']:.0f}%)" if a.get("suggest") else "")
             print("\n" + _rgb(f"⚠ {a['message']}.", (240, 145, 58), color) + tip)
         else:
-            print(f"\n⚠ {a['message']}")
+            print(f"\n{'⬆' if a['kind'] == 'update' else '⚠'} {a['message']}")
     for chk in s["setup"]:
         if not chk["ok"]:
             print(f"□ {chk['label']}")
@@ -240,6 +240,8 @@ def build_parser() -> argparse.ArgumentParser:
     up.add_argument("--check", action="store_true", help="only say whether a newer release exists")
     up.add_argument("--force", action="store_true", help="reinstall even if you're on the latest")
     up.add_argument("--auto", action="store_true", help=argparse.SUPPRESS)
+    up.add_argument("--notify", choices=["on", "off"], help="show a notice when a new release is out (checks GitHub once a day; off unless you turn it on)")
+    cmd("cleanup", "remove old plugin copies and leftover downloads (runs after every install and update)")
     au = cmd("auto-update", "check for and install new releases once a week: on | off | status")
     au.add_argument("action", nargs="?", default="status", choices=["on", "off", "status"])
     return p
@@ -335,10 +337,17 @@ def _dispatch(p, args, as_json: bool) -> int:
             print(f"wrote {len(rows)} rows to {args.output}")
     elif c == "update":
         from tagteam import updater
-        if args.check:
+        if args.notify:
+            store.set_config(updateCheck=args.notify == "on")
+            emit({"ok": True, "updateCheck": args.notify == "on",
+                  "message": "You'll see a notice when a new release is out." if args.notify == "on" else "Update notices are off."}, as_json)
+        elif args.check:
             emit(updater.check(), as_json)
         else:
             emit(updater.update(force=args.force, quiet=args.auto), as_json)
+    elif c == "cleanup":
+        from tagteam import updater
+        emit(updater.cleanup(), as_json)
     elif c == "auto-update":
         from tagteam import updater
         emit({"on": updater.auto_update_on, "off": updater.auto_update_off, "status": updater.auto_update_status}[args.action](), as_json)

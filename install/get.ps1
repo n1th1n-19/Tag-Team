@@ -14,9 +14,11 @@ function Say($m) { Write-Host "==> $m" -ForegroundColor Yellow }
 $script:StepN = 0
 function Step($label) {
   $script:StepN++
+  $pct = [int](100 * ($script:StepN - 1) / 3)
   $ProgressPreference = "Continue"
-  Write-Progress -Activity "Tag Team Wrestling: download" -Status "Step $($script:StepN) of 3: $label" -PercentComplete ([int](100 * ($script:StepN - 1) / 3))
-  Write-Host "[$("#" * $script:StepN)$("-" * (3 - $script:StepN))] $($script:StepN)/3 $label" -ForegroundColor Yellow
+  Write-Progress -Activity "Tag Team Wrestling: download" -Status "$pct% - step $($script:StepN) of 3: $label" -PercentComplete $pct
+  $filled = [int]($pct / 5)
+  Write-Host ("[" + ("#" * $filled) + ("-" * (20 - $filled)) + "] " + "$pct%".PadLeft(4) + " $label") -ForegroundColor Yellow
 }
 
 $Local = Join-Path $HomeDir "app\install\install.ps1"
