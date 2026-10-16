@@ -16,6 +16,7 @@ export type Account = {
   number: number; email: string; label: string; alias?: string; active: boolean; disabled?: boolean
   usageStatus: string; usage: Usage | null; lastGoodUsage?: Usage; peakPct: number | null
   nearLimit: boolean; liveSessions: number; tokens: Totals
+  trunks?: { index: number; color: string; shade: string }
 }
 export type Alert = { kind: string; account: number | null; latest?: string; message: string; pct?: number; ko?: boolean; suggest?: { number: number; label: string; pct: number } | null }
 export type Snapshot = {

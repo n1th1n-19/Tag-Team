@@ -148,7 +148,9 @@ def print_ring_card(s: dict, account: str = "all") -> None:
             bars = f"{r.get('usageStatus', '?').replace('_', ' '):<56}"
         else:
             bars = f"STAMINA {life_bar(five, color)} {five or 0:>3.0f}%  ENDURANCE {life_bar(seven, color, 12)} {seven or 0:>3.0f}%"
-        print(f" {cursor} {badge} {r['number']:>2} {r['label'][:16]:<16} {bars}  tonight {fmt_tokens(r['tokens']['today']['total']):>6}{live}{ko}")
+        hexed = (r.get("trunks") or {}).get("color", "#a9a6b8").lstrip("#")
+        trunks = _rgb("■", tuple(int(hexed[k:k + 2], 16) for k in (0, 2, 4)), color) if color else ""
+        print(f" {cursor} {badge} {r['number']:>2} {trunks}{' ' if trunks else ''}{r['label'][:16]:<16} {bars}  tonight {fmt_tokens(r['tokens']['today']['total']):>6}{live}{ko}")
     for a in s["alerts"]:
         if a["kind"] == "near-limit":
             tip = f"  TAG ME → `tagteam tag-out`" + (f" ({a['suggest']['label']} is fresh, {a['suggest']['pct']:.0f}%)" if a.get("suggest") else "")
@@ -200,9 +202,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     rc = cmd("ring-card", "the report: who's in the ring, roster, match history (default)")
     rc.add_argument("--account", default="all")
-    ti = cmd("tag-in", "tag a partner into the ring (number, ring name, email, or 'best')")
+    ti = cmd("tag-in", "tag a partner into the ring (number, ring name, email, 'best', or 'next' in line)")
     ti.add_argument("partner", nargs="?", default="best")
-    cmd("tag-out", "hot tag: hand off to the partner with the most stamina left")
+    to = cmd("tag-out", "hot tag: hand off to the partner with the most stamina left")
+    to.add_argument("--next", action="store_true", help="tag the next partner in line instead (skips anyone at their limit)")
+    mv = cmd("move", "move a partner to another spot in the lineup; their match history moves with them")
+    mv.add_argument("partner", help="number, ring name or email")
+    mv.add_argument("slot", type=int, help="the spot to move to (an occupied spot swaps the two)")
     cmd("roster", "list your partners and their stamina")
     sg = cmd("sign", "sign a partner: save the current Claude Code login (or --contract for a token)")
     sg.add_argument("--ring-name")
@@ -278,7 +284,9 @@ def _dispatch(p, args, as_json: bool) -> int:
         res = accounts.switch(None if args.partner == "best" else args.partner)
         emit(_tag_message(res), as_json)
     elif c == "tag-out":
-        emit(_tag_message(accounts.switch(None)), as_json)
+        emit(_tag_message(accounts.switch("next" if args.next else None)), as_json)
+    elif c == "move":
+        emit(accounts.move(args.partner, args.slot), as_json)
     elif c == "roster":
         s = state_mod.build()
         emit(s["accounts"], as_json, lambda rows: [print(

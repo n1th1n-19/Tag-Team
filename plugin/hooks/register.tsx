@@ -239,6 +239,9 @@ function alertsView($: any, ui: any, s: Snapshot) {
       {a.kind === 'near-limit' && (
         <Button key={`alert-best-${a.account}`} label="Hot tag: best" onPress={() => act($, 'Hot tag', ['tag-out', '--json'])} />
       )}
+      {a.kind === 'near-limit' && s.accounts.length > 2 && (
+        <Button key={`alert-next-${a.account}`} label="Next in line" onPress={() => act($, 'Next in line', ['tag-out', '--next', '--json'])} />
+      )}
     </Box>
   ))
 }
@@ -264,8 +267,10 @@ async function overview($: any, ui: any, e: any, s: Snapshot, width: number) {
     return (
       <Box key={`acct-${a.number}`} flexDirection="row" flexWrap="wrap" gap={1} alignItems="center">
         <Text bold={a.active} color={a.nearLimit ? 'warning' : a.active ? 'success' : undefined}>
-          {a.active ? '▶ [IN]   ' : a.disabled ? '  [BENCH]' : '  [APRON]'} {a.label.slice(0, 16).padEnd(16)}
+          {a.active ? '▶ [IN]   ' : a.disabled ? '  [BENCH]' : '  [APRON]'}
         </Text>
+        {a.trunks && <Text color={a.trunks.color}>■</Text>}
+        <Text bold={a.active} color={a.nearLimit ? 'warning' : a.active ? 'success' : undefined}>{a.label.slice(0, 16).padEnd(16)}</Text>
         <Text color={a.nearLimit ? 'warning' : undefined}>{meters}</Text>
         <Text dimColor>tonight {fmt(a.tokens.today.total)} · month {fmt(a.tokens.month.total)}{a.liveSessions ? ` · ${a.liveSessions} in progress` : ''}{five?.countdown ? ` · stamina back in ${five.countdown}` : ''}</Text>
         {a.active
@@ -499,7 +504,7 @@ export const register: Register = (on, options) => {
     await Promise.allSettled([
       $.command.register({ name: 'tag-team', description: 'Open the ring: your Claude accounts as a tag team, stamina, match history' }),
       $.command.register({ name: 'tag-in', description: 'Tag a partner into the ring (switch Claude account)', argumentHint: '[best|N|ring name]' }),
-      $.command.register({ name: 'tag-out', description: 'Hot tag: hand off to the partner with the most stamina left' }),
+      $.command.register({ name: 'tag-out', description: 'Hot tag: hand off to the partner with the most stamina left (/tag-out next: the next one in line)' }),
       $.command.register({ name: 'roster', description: 'Ring card: roster, stamina and match history in the chat' }),
       $.command.register({ name: 'blind-tag', description: 'Automatic tagging before a partner is worn down', argumentHint: '[on|off|preview|status]' }),
     ])
@@ -532,9 +537,9 @@ export const register: Register = (on, options) => {
     }
   })
 
-  on('command.run', { command: 'tag-out' }, async $ => {
+  on('command.run', { command: 'tag-out' }, async ($, e) => {
     try {
-      const r = await tagteam($, ['tag-out', '--json'])
+      const r = await tagteam($, ['tag-out', ...(e.args.trim() === 'next' ? ['--next'] : []), '--json'])
       void refresh($)
       return { text: r.message || 'TAG!' }
     } catch (err) {

@@ -135,6 +135,20 @@ def record_active(account: str | None, email: str = "", source: str = "seen", ts
     _append(path, {"ts": ts or time.time(), "account": str(account), "email": email, "source": source})
 
 
+def renumber(mapping: dict[str, str]) -> None:
+    """Partners changed numbers (tagteam move): relabel the ledger and the timeline so history follows them."""
+    path = home() / "ledger.json"
+    ledger = read_json(path, {})
+    ledger["days"] = {day: {mapping.get(a, a): v for a, v in accts.items()} for day, accts in ledger.get("days", {}).items()}
+    write_json(path, ledger)
+    entries = [{**e, "account": mapping.get(str(e.get("account")), str(e.get("account")))} for e in timeline()]
+    path = home() / "timeline.jsonl"
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.writelines(json.dumps(e) + "\n" for e in entries)
+    os.replace(tmp, path)
+
+
 def append_event(name: str, event: dict) -> None:
     _append(home() / f"{name}.jsonl", event)
 

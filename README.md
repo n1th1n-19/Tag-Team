@@ -93,8 +93,18 @@ Uninstall: the one-liner above, or `./install/install.sh --uninstall` (`install.
 ## First match
 
 1. Sign the account you're logged in as: `tagteam sign --ring-name work`
-2. Bring in a partner: run `/login` in Claude Code, log in to the other account, then `tagteam sign --ring-name personal`
+2. Bring in a partner: run `/login` in Claude Code, log in to another account, then `tagteam sign --ring-name personal`. Repeat for as many partners as you have.
 3. Open the ring: `/tag-team` in Claude Code, click `[IN]` in your editor's status bar, or `tagteam ring` for the browser.
+
+### Three or more partners
+
+The roster has no fixed size: sign as many accounts as you hold, and each gets its own card and life bars in the ring.
+
+- **Their own trunks.** Every account you sign gets its own color of shorts on its mascot: twelve hand-picked colors, then generated ones, so no two partners ever match. The color belongs to the account, not its spot: it stays through `tagteam move`, a released partner's color isn't handed to a newcomer, and re-signing an account brings its old color back. The same color marks the partner in the terminal ring card and the Claude Code pane.
+
+- **Who's next.** The hot tag (`tagteam tag-out`, *Hot tag: best*) picks the partner with the most stamina left. With three or more partners you can also tag the **next in line** instead: `tagteam tag-out --next`, `/tag-out next` in Claude Code, or the *Next in line* button next to TAG ME. It follows the lineup order and skips anyone at their limit.
+- **Lineup order.** The lineup is the partner numbers (`tagteam roster`). `tagteam move side-project 1` puts a partner first; moving onto a taken spot swaps the two. Each partner's match history moves with them.
+- **Bench** a partner (`tagteam bench 3`) to keep them out of blind tags without releasing them.
 
 ## Updates
 
@@ -114,8 +124,10 @@ Terminal:
 
 ```bash
 tagteam                          # ring card: mascot, score, roster with life bars, match history
-tagteam tag-in work              # tag a partner in (number, ring name, email, or best)
+tagteam tag-in work              # tag a partner in (number, ring name, email, best, or next)
 tagteam tag-out                  # hot tag to the freshest partner
+tagteam tag-out --next           # tag the next partner in line, skipping anyone at their limit
+tagteam move side-project 1      # put a partner first in the lineup (history moves with them)
 tagteam roster
 tagteam sign --ring-name work    # sign the current login; --contract signs a token (read from stdin)
 tagteam ring-name 2 work | bench 2 | unbench 2 | release 2

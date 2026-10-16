@@ -4,7 +4,7 @@ const MASCOT = {"palette":{"s":"#1e1a22","e":"#a99bf0","E":"#7d6fcf","R":"#cfc6f
 /** An SVG of pixel rows ("." = transparent), `scale` screen pixels per art pixel; integer scaling stays crisp. */
 const svgText = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-function rowsSVG(rows, scale = 4, title = "") {
+function rowsSVG(rows, scale = 4, title = "", recolor = {}) {
   title = svgText(title);
   const w = rows[0].length, h = rows.length;
   let rects = "";
@@ -14,7 +14,7 @@ function rowsSVG(rows, scale = 4, title = "") {
       const ch = row[x];
       let run = 1;
       while (x + run < w && row[x + run] === ch) run++;
-      if (ch !== ".") rects += `<rect x="${x}" y="${y}" width="${run}" height="1" fill="${MASCOT.palette[ch]}"/>`;
+      if (ch !== ".") rects += `<rect x="${x}" y="${y}" width="${run}" height="1" fill="${recolor[ch] || MASCOT.palette[ch]}"/>`;
       x += run;
     }
   });
@@ -25,8 +25,12 @@ function rowsSVG(rows, scale = 4, title = "") {
 function mascotSVG(name, scale = 4, title = "") { return rowsSVG(MASCOT.frames[name], scale, title || name); }
 
 /** One wrestler cut from the icon: "red" (left) or "blue" (right), for portraits. */
-function partnerSVG(side, scale = 3, title = "") {
-  return rowsSVG(MASCOT.frames[side === "red" ? "mascot/red" : "mascot/blue"], scale, title);
+/** One wrestler cut from the icon: "red" (left) or "blue" (right), for portraits. `trunks` ({color, shade}, from
+ * tagteam state) dresses them in that partner's own colors, so every account in the roster looks different. */
+function partnerSVG(side, scale = 3, title = "", trunks = null) {
+  const red = side === "red";
+  const recolor = trunks ? (red ? { B: trunks.color, y: trunks.shade } : { w: trunks.color, Y: trunks.shade }) : {};
+  return rowsSVG(MASCOT.frames[red ? "mascot/red" : "mascot/blue"], scale, title, recolor);
 }
 
 if (typeof module !== "undefined") module.exports = { MASCOT, mascotSVG, partnerSVG, rowsSVG };
