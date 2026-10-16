@@ -240,7 +240,7 @@ def build_parser() -> argparse.ArgumentParser:
     up.add_argument("--check", action="store_true", help="only say whether a newer release exists")
     up.add_argument("--force", action="store_true", help="reinstall even if you're on the latest")
     up.add_argument("--auto", action="store_true", help=argparse.SUPPRESS)
-    up.add_argument("--notify", choices=["on", "off"], help="show a notice when a new release is out (checks GitHub once a day; on by default)")
+    up.add_argument("--notify", choices=["on", "off"], help="show a notice when a new release is out (checks GitHub once a day; off unless you turn it on)")
     cmd("cleanup", "remove old plugin copies and leftover downloads (runs after every install and update)")
     au = cmd("auto-update", "check for and install new releases once a week: on | off | status")
     au.add_argument("action", nargs="?", default="status", choices=["on", "off", "status"])

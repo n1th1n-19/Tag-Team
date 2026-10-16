@@ -137,6 +137,7 @@ TAG TEAM WRESTLING is in the building.
   Terminal:     tagteam   tagteam tag-out   tagteam ring   tagteam rules
   Editors:      [IN] in the status bar; it turns into TAG ME when your partner is worn down.
 First time? Sign the account you're logged in as:  tagteam sign --ring-name main
+Want to hear about new releases?  tagteam update --notify on
 If the plugin can't find tagteam, set its path in /config (tag-team > tagteam command):
   $env:USERPROFILE\.local\bin\tagteam.exe
 "@

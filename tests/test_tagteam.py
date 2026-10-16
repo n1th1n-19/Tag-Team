@@ -289,6 +289,8 @@ def test_update_notice_checks_once_a_day_and_can_be_turned_off():
         _env(Path(d))
         calls = []
         real = updater._get
+        assert updater.cached_check() is None  # opt-in: nothing is checked until notices are on
+        store.set_config(updateCheck=True)
         try:
             updater._get = lambda url, timeout=20: calls.append(url) or b'{"tag_name": "v99.0.0"}'
             assert updater.cached_check()["available"] and updater.cached_check()["latest"] == "v99.0.0"

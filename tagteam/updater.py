@@ -54,8 +54,8 @@ def check() -> dict:
 
 
 def cached_check(max_age: float = 86400) -> dict | None:
-    """Is a newer release out? Asks GitHub at most once a day; None when update checks are off."""
-    if not store.config().get("updateCheck", True):
+    """Is a newer release out? Asks GitHub at most once a day; None unless notices are on (opt-in)."""
+    if not store.config().get("updateCheck"):
         return None
     path = store.home() / "cache" / "update-check.json"
     seen = store.read_json(path, {})

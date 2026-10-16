@@ -195,5 +195,6 @@ TAG TEAM WRESTLING is in the building.
                 tagteam rules         how the match works
   Editors:      [IN] in the status bar; it turns into TAG ME when your partner is worn down.
 First time? Sign the account you're logged in as:  tagteam sign --ring-name main
+Want to hear about new releases?  tagteam update --notify on
 Optional status line: add  "statusLine": {"type": "command", "command": "tagteam statusline"}  to ~/.claude/settings.json
 MSG
