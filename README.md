@@ -98,7 +98,11 @@ Uninstall: the one-liner above, or `./install/install.sh --uninstall` (`install.
 
 ## Updates
 
-`tagteam update` installs the newest release: the `tagteam` command, the Claude Code plugin and the editor extension, all at the same version. It downloads that release's installer from GitHub, which checks the zip against `SHA256SUMS.txt` before installing anything, exactly like the one-liner. `tagteam update --check` only tells you whether there's a newer release.
+`tagteam update` installs the newest release: the `tagteam` command, the Claude Code plugin and the editor extension, all at the same version. It downloads that release's installer from GitHub, which checks the zip against `SHA256SUMS.txt` before installing anything, exactly like the one-liner. `tagteam update --check` only tells you whether there's a newer release. Install, update and uninstall all show a progress bar with the overall percentage; the download step fills by bytes received.
+
+**New release notices.** Once a day Tag Team asks GitHub whether a newer release is out. When there is one, the ring, the terminal ring card and the Claude Code pane show *⬆ Tag Team vX is out*, and the editor extension offers **Update now** (it runs `tagteam update` in a terminal so you can watch the progress). `tagteam update --notify off` turns the check off.
+
+**Cleanup.** Every install and update ends with `tagteam cleanup`. Claude Code keeps a copy of every plugin version it ever installed, so cleanup keeps the newest two (a session started before the update may still be using the previous one) and removes the rest, plus leftover update downloads. Uninstalling removes all of them.
 
 `tagteam auto-update on` does that for you once a week (a systemd user timer on Linux, a LaunchAgent on macOS, a Task Scheduler task on Windows); it installs only when there's a newer release. `tagteam auto-update off` stops it, and uninstalling removes it. Auto-update is off unless you turn it on. On Windows the update finishes in its own window, since `tagteam.exe` can't replace itself while it's running.
 
@@ -123,6 +127,8 @@ tagteam rules                    # the glossary
 tagteam export --csv -o history.csv
 tagteam update                   # install the newest release (--check to just look)
 tagteam auto-update on           # check once a week and install new releases
+tagteam update --notify off      # no "new release" notices (no daily check)
+tagteam cleanup                  # remove old plugin copies and leftover downloads
 tagteam statusline               # for Claude Code's statusLine setting
 ```
 
@@ -151,7 +157,7 @@ Our advice: don't sign up for extra accounts to get around usage limits. Anthrop
 
 ## Privacy and security
 
-- Your match history stays on your machine. Tag Team's only network call is to GitHub's releases API, and only when you run `tagteam update` or turn on auto-update (claude-swap calls Anthropic's usage endpoint as it always does).
+- Your match history stays on your machine. Tag Team's only network call is to GitHub's releases API: once a day to see whether a new release is out (`tagteam update --notify off` stops it), and when you run `tagteam update` or turn on auto-update. It sends nothing about you or your usage. claude-swap calls Anthropic's usage endpoint as it always does.
 - The browser ring listens on 127.0.0.1 only and every API call needs a random per-run token (in the URL fragment, never sent as part of a URL) plus a localhost Host header.
 - Contracts (tokens) go to claude-swap on stdin, never on a command line.
 - Files in `~/.tag-team` are owner-only (0600).

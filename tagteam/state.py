@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from datetime import datetime
 
-from tagteam import accounts, art, store, tokens
+from tagteam import __version__, accounts, art, store, tokens, updater
 from tagteam.rules import RULES
 
 SCHEMA_VERSION = 1
@@ -99,6 +99,10 @@ def build() -> dict:
         if r.get("usageStatus") == "relogin_required":
             alerts.append({"kind": "relogin", "account": r["number"],
                            "message": f"{r['label']} is injured: their saved login is dead. Log in again and re-sign them"})
+    new = updater.cached_check()
+    if new and new["available"]:
+        alerts.append({"kind": "update", "account": None, "latest": new["latest"],
+                       "message": f"Tag Team {new['latest']} is out (you have {__version__}). Run `tagteam update` to get it"})
 
     unmanaged = identity is not None and active_row is None
     setup = [

@@ -105,6 +105,20 @@ function render() {
   const key = near ? `${near.account}:${near.ko ? 'ko' : Math.floor((near.pct || 0) / 5)}` : null
   if (near && key !== alerted && !snap.auto.enabled) promptTagMe(near)
   alerted = key
+  const up = snap.alerts.find(x => x.kind === 'update')
+  if (up && /^v?[\d.]+$/.test(up.latest) && openRing.context.globalState.get('tagTeam.updateSeen') !== up.latest) promptUpdate(up)
+}
+
+// Once per release: offer to run `tagteam update` in a terminal, where its progress bar shows.
+async function promptUpdate(up) {
+  openRing.context.globalState.update('tagTeam.updateSeen', up.latest)
+  const pick = await vscode.window.showInformationMessage(`${up.message}.`, 'Update now', 'What\'s new')
+  if (pick === 'What\'s new') return vscode.env.openExternal(vscode.Uri.parse(`https://github.com/n1th1n-19/Tag-Team/releases/tag/${up.latest}`))
+  if (pick !== 'Update now') return
+  const bin = resolveBin(setting('tagteamPath') || 'tagteam') || 'tagteam'
+  const term = vscode.window.createTerminal('Tag Team update')
+  term.show()
+  term.sendText(process.platform === 'win32' ? `& "${bin}" update` : `"${bin}" update`)
 }
 
 async function promptTagMe(near) {

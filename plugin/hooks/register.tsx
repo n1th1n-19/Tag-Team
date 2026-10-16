@@ -229,8 +229,8 @@ function alertsView($: any, ui: any, s: Snapshot) {
   const { Box, Text, Button } = ui
   return s.alerts.map(a => (
     <Box key={`alert-${a.kind}-${a.account}`} flexDirection="row" flexWrap="wrap" gap={1} alignItems="center">
-      <Text color={a.kind === 'near-limit' ? 'error' : 'warning'} bold={a.kind === 'near-limit'}>
-        {a.kind === 'near-limit' ? (a.ko ? 'DOWN FOR THE COUNT! ' : 'REACH FOR THE TAG! ') : '⚠ '}{a.message}
+      <Text color={a.kind === 'near-limit' ? 'error' : a.kind === 'update' ? 'success' : 'warning'} bold={a.kind === 'near-limit'}>
+        {a.kind === 'near-limit' ? (a.ko ? 'DOWN FOR THE COUNT! ' : 'REACH FOR THE TAG! ') : a.kind === 'update' ? '⬆ ' : '⚠ '}{a.message}
       </Text>
       {a.kind === 'near-limit' && a.suggest && (
         <Button key={`alert-sw-${a.account}`} variant="primary" label={`TAG ME > ${a.suggest.label}`}

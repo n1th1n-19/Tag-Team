@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -52,6 +53,43 @@ def check() -> dict:
     return {"ok": True, "current": __version__, "latest": tag, "updateAvailable": newer, "url": data.get("html_url"), "message": msg}
 
 
+def cached_check(max_age: float = 86400) -> dict | None:
+    """Is a newer release out? Asks GitHub at most once a day; None when update checks are off."""
+    if not store.config().get("updateCheck", True):
+        return None
+    path = store.home() / "cache" / "update-check.json"
+    seen = store.read_json(path, {})
+    if time.time() - seen.get("at", 0) > max_age:
+        try:
+            latest = json.loads(_get(LATEST_API, timeout=3)).get("tag_name") or ""
+        except (OSError, ValueError, CswapError):
+            latest = seen.get("latest", "")  # offline: keep what we knew, try again tomorrow
+        seen = {"at": time.time(), "latest": latest}
+        store.write_json(path, seen)
+    latest = seen.get("latest") or ""
+    return {"latest": latest, "current": __version__, "available": parse_version(latest) > parse_version(__version__)}
+
+
+def cleanup() -> dict:
+    """After an install or update: drop the old plugin copies Claude Code keeps, and leftover downloads."""
+    removed = []
+    # Claude Code keeps every plugin version it ever installed. Keep the newest two: a session that
+    # started before the update may still be running the previous one.
+    plugins = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude") / "plugins" / "cache" / "tag-team" / "tag-team"
+    if plugins.is_dir():
+        versions = sorted((p for p in plugins.iterdir() if p.is_dir() and parse_version(p.name)), key=lambda p: parse_version(p.name))
+        removed += versions[:-2]
+    # Update downloads from earlier runs (an hour's grace: on Windows the newest may still be running).
+    removed += [p for p in Path(tempfile.gettempdir()).glob("tag-team-update-*") if time.time() - p.stat().st_mtime > 3600]
+    # A copy of the app left half-made by an interrupted install.
+    removed += [p for p in [store.home() / "app.new"] if p.exists()]
+    for p in removed:
+        shutil.rmtree(p, ignore_errors=True)
+    n = len(removed)
+    return {"ok": True, "removed": [str(p) for p in removed],
+            "message": f"Cleaned up {n} old item{'s' if n != 1 else ''}." if n else "Nothing to clean up."}
+
+
 def update(force: bool = False, quiet: bool = False) -> dict:
     """Install the newest release with its own installer (checksums verified before anything runs)."""
     info = check()
@@ -74,8 +112,13 @@ def update(force: bool = False, quiet: bool = False) -> dict:
                "message": f"Updating to {tag} in a new window. Open a new terminal when it's done."}
     else:
         bash = find_exe("bash") or "/bin/bash"
-        proc = subprocess.run([bash, str(path)], env=env, cwd=str(tmp),
-                              stdout=subprocess.PIPE if quiet else None, stderr=subprocess.STDOUT if quiet else None, text=True)
+        if not quiet:
+            print(f"Updating Tag Team {__version__} -> {tag.lstrip('vV')}", flush=True)
+        try:
+            proc = subprocess.run([bash, str(path)], env=env, cwd=str(tmp),
+                                  stdout=subprocess.PIPE if quiet else None, stderr=subprocess.STDOUT if quiet else None, text=True)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
         if proc.returncode != 0:
             raise CswapError(f"update to {tag} failed (installer exit {proc.returncode})"
                              + (f": {proc.stdout[-400:]}" if quiet and proc.stdout else ""))

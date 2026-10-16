@@ -19,13 +19,41 @@ function Remove-SwapMe {
   Remove-Item -Recurse -Force (Join-Path $env:USERPROFILE ".swap-me\app") -ErrorAction SilentlyContinue
 }
 
+# Progress: the native progress bar plus one line per step, with the overall percentage.
+$script:StepN = 0
+$script:StepTotal = 1
+$script:Activity = "Tag Team Wrestling"
+function Step($label) {
+  $script:StepN++
+  $pct = [int](100 * ($script:StepN - 1) / $script:StepTotal)
+  Write-Progress -Activity $script:Activity -Status "$pct% - step $($script:StepN) of $($script:StepTotal): $label" -PercentComplete $pct
+  $filled = [int]($pct / 5)
+  Write-Host ("[" + ("#" * $filled) + ("-" * (20 - $filled)) + "] " + "$pct%".PadLeft(4) + " $label") -ForegroundColor Yellow
+}
+function Done-Steps {
+  Write-Host ("[" + ("#" * 20) + "] 100% done") -ForegroundColor Yellow
+  Write-Progress -Activity $script:Activity -Completed
+}
+
 if ($Uninstall) {
+  $script:Activity = "Tag Team Wrestling: uninstall"
+  $found = @($Editors | Where-Object { Have $_ })
+  $script:StepTotal = 3 + [int](Have claude) + $found.Count
+  Step "Stopping the corner man and auto-update"
   if (Have tagteam) { try { tagteam corner-man uninstall | Out-Null } catch {}; try { tagteam auto-update off | Out-Null } catch {} }
-  if (Have claude) { try { claude plugin uninstall tag-team@tag-team | Out-Null } catch {}; try { claude plugin marketplace remove tag-team | Out-Null } catch {} }
+  if (Have claude) {
+    Step "Removing the tag-team plugin from Claude Code"
+    try { claude plugin uninstall tag-team@tag-team | Out-Null } catch {}; try { claude plugin marketplace remove tag-team | Out-Null } catch {}
+    $cfg = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $env:USERPROFILE ".claude" }
+    Remove-Item -Recurse -Force (Join-Path $cfg "plugins\cache\tag-team") -ErrorAction SilentlyContinue
+  }
+  foreach ($e in $found) { Step "Removing the Tag Team extension from $e"; try { & $e --uninstall-extension n1th1n-19.tag-team | Out-Null } catch {} }
+  Step "Removing tagteam"
   if (Have uv) { try { uv tool uninstall tag-team | Out-Null } catch {} }
-  foreach ($e in $Editors) { if (Have $e) { try { & $e --uninstall-extension n1th1n-19.tag-team | Out-Null } catch {} } }
+  Step "Removing the app folder"
   Remove-SwapMe
-  Remove-Item -Recurse -Force $App -ErrorAction SilentlyContinue
+  Remove-Item -Recurse -Force $App, "$App.new" -ErrorAction SilentlyContinue
+  Done-Steps
   Say "Tag Team has left the building. Match history stays in $HomeDir."
   exit 0
 }
@@ -60,16 +88,8 @@ function Install-Uv {
     Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
   }
 }
-# Progress: the native progress bar plus one line per step.
-$script:StepN = 0
 $HasVsix = Test-Path (Join-Path $Src "dist\tag-team.vsix")
-$script:StepTotal = 2 + [int](-not (Have uv)) + [int](Have claude) + [int]$HasVsix * @($Editors | Where-Object { Have $_ }).Count
-function Step($label) {
-  $script:StepN++
-  Write-Progress -Activity "Tag Team Wrestling" -Status "Step $($script:StepN) of $($script:StepTotal): $label" -PercentComplete ([int](100 * ($script:StepN - 1) / $script:StepTotal))
-  $bar = ("#" * $script:StepN) + ("-" * ($script:StepTotal - $script:StepN))
-  Write-Host "[$bar] $($script:StepN)/$($script:StepTotal) $label" -ForegroundColor Yellow
-}
+$script:StepTotal = 3 + [int](-not (Have uv)) + [int](Have claude) + [int]$HasVsix * @($Editors | Where-Object { Have $_ }).Count
 
 if (-not (Have uv)) { Step "Getting uv $UvVersion (checksum-verified)"; Install-Uv }
 
@@ -105,7 +125,11 @@ if (Test-Path $Vsix) {
   foreach ($e in $Editors) { if (Have $e) { Step "Adding the Tag Team extension to $e"; try { & $e --install-extension $Vsix --force | Out-Null } catch {} } }
 }
 
-Write-Progress -Activity "Tag Team Wrestling" -Completed
+# Old plugin copies Claude Code keeps, leftover update downloads.
+Step "Cleaning up old versions"
+try { & (Join-Path $env:USERPROFILE ".local\bin\tagteam.exe") cleanup | Out-Null } catch {}
+
+Done-Steps
 Write-Host @"
 
 TAG TEAM WRESTLING is in the building.

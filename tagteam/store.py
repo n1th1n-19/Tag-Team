@@ -14,6 +14,7 @@ DEFAULT_CONFIG = {
     "threshold": 90,          # the tag-out point: % of 5h/7d stamina that raises TAG ME
     "auto": {"enabled": False, "mode": "session"},   # mode: session | always
     "pricing": {},            # model-prefix -> [input $/M, output $/M, cache-read multiplier]
+    "updateCheck": True,      # ask GitHub once a day whether a new release is out (tagteam update --notify off)
 }
 
 

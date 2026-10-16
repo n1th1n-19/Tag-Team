@@ -17,7 +17,7 @@ export type Account = {
   usageStatus: string; usage: Usage | null; lastGoodUsage?: Usage; peakPct: number | null
   nearLimit: boolean; liveSessions: number; tokens: Totals
 }
-export type Alert = { kind: string; account: number; message: string; pct?: number; ko?: boolean; suggest?: { number: number; label: string; pct: number } | null }
+export type Alert = { kind: string; account: number | null; latest?: string; message: string; pct?: number; ko?: boolean; suggest?: { number: number; label: string; pct: number } | null }
 export type Snapshot = {
   generatedAt: number; threshold: number; errors: string[]
   cswap: { installed: boolean; version: string | null }

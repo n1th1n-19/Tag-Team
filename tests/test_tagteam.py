@@ -5,6 +5,7 @@ import os
 import stat
 import sys
 import tempfile
+import time
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -280,6 +281,48 @@ def test_auto_update_job_on_and_off():
                 assert not any(p.exists() for p in files) and not updater.auto_update_status()["enabled"]
         finally:
             updater.subprocess.run = real
+
+
+def test_update_notice_checks_once_a_day_and_can_be_turned_off():
+    from tagteam import updater
+    with tempfile.TemporaryDirectory() as d:
+        _env(Path(d))
+        calls = []
+        real = updater._get
+        try:
+            updater._get = lambda url, timeout=20: calls.append(url) or b'{"tag_name": "v99.0.0"}'
+            assert updater.cached_check()["available"] and updater.cached_check()["latest"] == "v99.0.0"
+            assert len(calls) == 1  # the second look came from the day's cache
+            def offline(url, timeout=20):
+                raise OSError("offline")
+            updater._get = offline
+            assert updater.cached_check(max_age=0)["latest"] == "v99.0.0"  # offline keeps what it knew
+            store.set_config(updateCheck=False)
+            assert updater.cached_check() is None
+        finally:
+            updater._get = real
+
+
+def test_cleanup_keeps_the_two_newest_plugin_copies():
+    from tagteam import updater
+    with tempfile.TemporaryDirectory() as d:
+        tmp = Path(d)
+        _env(tmp)
+        cache = tmp / "claude" / "plugins" / "cache" / "tag-team" / "tag-team"
+        for v in ["0.2.0", "0.4.2", "0.4.10", "0.4.3"]:
+            (cache / v).mkdir(parents=True)
+        old_tmp = tempfile.tempdir
+        tempfile.tempdir = str(tmp)
+        try:
+            stale = tmp / "tag-team-update-old"
+            stale.mkdir()
+            os.utime(stale, (time.time() - 7200, time.time() - 7200))
+            (tmp / "tag-team-update-new").mkdir()  # may still be running
+            res = updater.cleanup()
+        finally:
+            tempfile.tempdir = old_tmp
+        assert sorted(p.name for p in cache.iterdir()) == ["0.4.10", "0.4.3"], res
+        assert not stale.exists() and (tmp / "tag-team-update-new").exists()
 
 
 def test_score_note_splits_cache_reads():

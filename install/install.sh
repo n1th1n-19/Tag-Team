@@ -17,10 +17,19 @@ STEP=0
 STEPS=1
 TTY=0
 if [ -t 1 ] && [ "${TERM:-dumb}" != dumb ]; then TTY=1; fi
-bar() {
-  local i out=""
-  for ((i = 1; i <= STEPS; i++)); do if [ "$i" -le "$STEP" ]; then out="${out}■"; else out="${out}□"; fi; done
-  printf '[%s] %d/%d' "$out" "$STEP" "$STEPS"
+WATCH=""; WATCH_SIZE=0  # while a download step runs: the file being written and its full size
+pct() {  # finished steps, plus how far the current one is (by bytes when a download is being watched)
+  local frac=0 size
+  if [ -n "$WATCH" ] && [ "$WATCH_SIZE" -gt 0 ] && [ -f "$WATCH" ]; then
+    size=$(wc -c <"$WATCH" | tr -d ' ')
+    frac=$((size * 100 / WATCH_SIZE)); [ "$frac" -gt 100 ] && frac=100
+  fi
+  echo $((((STEP - 1) * 100 + frac) / STEPS))
+}
+bar() {  # bar PERCENT -> [■■■■□□□□□□□□□□□□□□□□]  20%
+  local i out="" n=$(($1 / 5))
+  for ((i = 0; i < 20; i++)); do if [ "$i" -lt "$n" ]; then out="${out}■"; else out="${out}□"; fi; done
+  printf '[%s] %3d%%' "$out" "$1"
 }
 fail() { say "$1 failed. The last lines of $LOG:"; tail -n 15 "$LOG" >&2; exit 1; }
 step() {  # step "label" command...
@@ -28,7 +37,7 @@ step() {  # step "label" command...
   shift
   STEP=$((STEP + 1))
   if [ "$TTY" = 0 ]; then
-    say "$(bar) $label"
+    say "$(bar $(((STEP - 1) * 100 / STEPS))) $label"
     "$@" >>"$LOG" 2>&1 || fail "$label"
     return 0
   fi
@@ -36,14 +45,14 @@ step() {  # step "label" command...
   local pid=$! k=0
   local frames=("▱▱▱▱▱" "▰▱▱▱▱" "▰▰▱▱▱" "▰▰▰▱▱" "▰▰▰▰▱" "▰▰▰▰▰")
   while kill -0 "$pid" 2>/dev/null; do
-    printf '\r\033[K\033[1;33m%s\033[0m %s %s' "$(bar)" "${frames[$((k % 6))]}" "$label"
+    printf '\r\033[K\033[1;33m%s\033[0m %s %s' "$(bar "$(pct)")" "${frames[$((k % 6))]}" "$label"
     k=$((k + 1))
     sleep 0.12
   done
   if wait "$pid"; then
-    printf '\r\033[K\033[1;33m%s\033[0m \033[1;32m✓\033[0m %s\n' "$(bar)" "$label"
+    printf '\r\033[K\033[1;33m%s\033[0m \033[1;32m✓\033[0m %s\n' "$(bar $((STEP * 100 / STEPS)))" "$label"
   else
-    printf '\r\033[K\033[1;33m%s\033[0m \033[1;31m✗\033[0m %s\n' "$(bar)" "$label"
+    printf '\r\033[K\033[1;33m%s\033[0m \033[1;31m✗\033[0m %s\n' "$(bar "$(pct)")" "$label"
     fail "$label"
   fi
 }
@@ -60,16 +69,27 @@ remove_swap_me() {  # swap-me 0.1, the old name
 }
 
 if [ "${1:-}" = "--uninstall" ]; then
-  have tagteam && tagteam corner-man uninstall >/dev/null 2>&1 || true
-  have tagteam && tagteam auto-update off >/dev/null 2>&1 || true
-  if have claude; then
-    claude plugin uninstall tag-team@tag-team >/dev/null 2>&1 || true
-    claude plugin marketplace remove tag-team >/dev/null 2>&1 || true
-  fi
-  have uv && uv tool uninstall tag-team >/dev/null 2>&1 || true
-  for editor in code codium cursor; do have "$editor" && "$editor" --uninstall-extension n1th1n-19.tag-team >/dev/null 2>&1 || true; done
-  remove_swap_me
-  rm -rf "$APP"
+  stop_jobs() { have tagteam || return 0; tagteam corner-man uninstall || true; tagteam auto-update off || true; }
+  remove_plugin() {
+    claude plugin uninstall tag-team@tag-team || true
+    claude plugin marketplace remove tag-team || true
+    rm -rf "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/cache/tag-team"  # the copies Claude Code keeps of every version
+  }
+  remove_tool() { have uv && uv tool uninstall tag-team || true; }
+  remove_extension() { "$1" --uninstall-extension n1th1n-19.tag-team || true; }
+  remove_files() { remove_swap_me; rm -rf "$APP" "$APP.new"; }
+  EDITORS=""
+  for editor in code codium cursor; do if have "$editor"; then EDITORS="$EDITORS $editor"; fi; done
+  STEPS=3
+  have claude && STEPS=$((STEPS + 1))
+  for editor in $EDITORS; do STEPS=$((STEPS + 1)); done
+  step "Stopping the corner man and auto-update" stop_jobs
+  have claude && step "Removing the tag-team plugin from Claude Code" remove_plugin
+  for editor in $EDITORS; do step "Removing the Tag Team extension from $editor" remove_extension "$editor"; done
+  step "Removing tagteam" remove_tool
+  step "Removing the app folder" remove_files
+  [ "$TTY" = 1 ] || say "$(bar 100) done"
+  rm -f "$LOG"
   say "Tag Team has left the building. Your match history stays in $HOME_DIR (delete it to remove that too)."
   exit 0
 fi
@@ -137,11 +157,14 @@ add_plugin() {
 # 6. Editor extension: status bar, TAG ME, the ring (VS Code, VSCodium, Cursor).
 add_extension() { "$1" --install-extension "$VSIX" --force; }
 
+# 7. Old plugin copies Claude Code keeps, leftover update downloads (tagteam cleanup).
+tidy() { "$(command -v tagteam || echo "$HOME/.local/bin/tagteam")" cleanup || true; }
+
 VSIX="$APP/dist/tag-team.vsix"
 [ -f "$SRC/dist/tag-team.vsix" ] && VSIX_SRC="$SRC/dist/tag-team.vsix" || VSIX_SRC=""
 EDITORS=""
 for editor in code codium cursor; do if have "$editor"; then EDITORS="$EDITORS $editor"; fi; done
-STEPS=2
+STEPS=3
 have uv || STEPS=$((STEPS + 1))
 have claude && STEPS=$((STEPS + 1))
 if [ -n "$VSIX_SRC" ] || have npx; then for editor in $EDITORS; do STEPS=$((STEPS + 1)); done; fi
@@ -156,6 +179,8 @@ if [ ! -f "$VSIX" ] && have npx; then (cd "$APP" && python3 scripts/package.py >
 if [ -f "$VSIX" ]; then
   for editor in $EDITORS; do step "Adding the Tag Team extension to $editor" add_extension "$editor"; done
 fi
+step "Cleaning up old versions" tidy
+[ "$TTY" = 1 ] || say "$(bar 100) done"
 have claude || say "Claude Code not found. Install it, then run: claude plugin marketplace add \"$APP\" && claude plugin install tag-team@tag-team"
 rm -f "$LOG"
 
