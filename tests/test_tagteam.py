@@ -340,6 +340,42 @@ def test_get_sh_fails_fast_when_the_download_is_unreachable():
     assert time.time() - t < 60
 
 
+def test_move_renumbers_history_so_it_follows_each_partner():
+    with tempfile.TemporaryDirectory() as d:
+        _env(Path(d))
+        store.write_json(store.home() / "ledger.json", {"days": {"2026-10-10": {"1": {"m": [1]}, "2": {"m": [2]}, "3": {"m": [3]}}}})
+        for n, email in [("1", "a@x"), ("3", "c@x")]:
+            store.record_active(n, email)
+        lineups = iter([
+            [{"number": 1, "email": "a@x"}, {"number": 2, "email": "b@x"}, {"number": 3, "email": "c@x"}],
+            [{"number": 1, "email": "c@x"}, {"number": 2, "email": "b@x"}, {"number": 3, "email": "a@x"}],  # c moved onto 1: swapped
+        ])
+        moved, real = [], (accounts.list_accounts, accounts.run_cswap, accounts._plain)
+        try:
+            accounts.list_accounts = lambda: {"accounts": next(lineups)}
+            accounts.run_cswap = lambda *a, **k: moved.append(a)
+            accounts._plain = lambda proc: {"ok": True, "message": "moved"}
+            res = accounts.move("c@x", 1)
+        finally:
+            accounts.list_accounts, accounts.run_cswap, accounts._plain = real
+        assert moved == [("move", "c@x", "1")] and res["renumbered"] == {"1": "3", "3": "1"}
+        day = store.read_json(store.home() / "ledger.json", {})["days"]["2026-10-10"]
+        assert day == {"3": {"m": [1]}, "2": {"m": [2]}, "1": {"m": [3]}}
+        assert [(e["account"], e["email"]) for e in store.timeline()] == [("3", "a@x"), ("1", "c@x")]
+
+
+def test_next_in_line_uses_cswaps_lineup_rotation():
+    sent, real = [], accounts.cswap_json
+    try:
+        accounts.cswap_json = lambda *a, **k: sent.append(a) or {"to": {}}
+        accounts.switch("next")
+        accounts.switch(None)
+        accounts.switch("2")
+    finally:
+        accounts.cswap_json = real
+    assert sent == [("switch", "--strategy", "next-available", "--json"), ("switch", "--strategy", "best", "--json"), ("switch", "2", "--json")]
+
+
 def test_score_note_splits_cache_reads():
     from tagteam.cli import score_note
     assert score_note({"total": 0}) == "Claude Code on this computer only"

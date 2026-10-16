@@ -200,9 +200,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     rc = cmd("ring-card", "the report: who's in the ring, roster, match history (default)")
     rc.add_argument("--account", default="all")
-    ti = cmd("tag-in", "tag a partner into the ring (number, ring name, email, or 'best')")
+    ti = cmd("tag-in", "tag a partner into the ring (number, ring name, email, 'best', or 'next' in line)")
     ti.add_argument("partner", nargs="?", default="best")
-    cmd("tag-out", "hot tag: hand off to the partner with the most stamina left")
+    to = cmd("tag-out", "hot tag: hand off to the partner with the most stamina left")
+    to.add_argument("--next", action="store_true", help="tag the next partner in line instead (skips anyone at their limit)")
+    mv = cmd("move", "move a partner to another spot in the lineup; their match history moves with them")
+    mv.add_argument("partner", help="number, ring name or email")
+    mv.add_argument("slot", type=int, help="the spot to move to (an occupied spot swaps the two)")
     cmd("roster", "list your partners and their stamina")
     sg = cmd("sign", "sign a partner: save the current Claude Code login (or --contract for a token)")
     sg.add_argument("--ring-name")
@@ -278,7 +282,9 @@ def _dispatch(p, args, as_json: bool) -> int:
         res = accounts.switch(None if args.partner == "best" else args.partner)
         emit(_tag_message(res), as_json)
     elif c == "tag-out":
-        emit(_tag_message(accounts.switch(None)), as_json)
+        emit(_tag_message(accounts.switch("next" if args.next else None)), as_json)
+    elif c == "move":
+        emit(accounts.move(args.partner, args.slot), as_json)
     elif c == "roster":
         s = state_mod.build()
         emit(s["accounts"], as_json, lambda rows: [print(

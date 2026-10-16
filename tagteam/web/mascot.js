@@ -4,7 +4,7 @@ const MASCOT = {"palette":{"s":"#1e1a22","e":"#a99bf0","E":"#7d6fcf","R":"#cfc6f
 /** An SVG of pixel rows ("." = transparent), `scale` screen pixels per art pixel; integer scaling stays crisp. */
 const svgText = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-function rowsSVG(rows, scale = 4, title = "") {
+function rowsSVG(rows, scale = 4, title = "", recolor = {}) {
   title = svgText(title);
   const w = rows[0].length, h = rows.length;
   let rects = "";
@@ -14,7 +14,7 @@ function rowsSVG(rows, scale = 4, title = "") {
       const ch = row[x];
       let run = 1;
       while (x + run < w && row[x + run] === ch) run++;
-      if (ch !== ".") rects += `<rect x="${x}" y="${y}" width="${run}" height="1" fill="${MASCOT.palette[ch]}"/>`;
+      if (ch !== ".") rects += `<rect x="${x}" y="${y}" width="${run}" height="1" fill="${recolor[ch] || MASCOT.palette[ch]}"/>`;
       x += run;
     }
   });
@@ -25,8 +25,14 @@ function rowsSVG(rows, scale = 4, title = "") {
 function mascotSVG(name, scale = 4, title = "") { return rowsSVG(MASCOT.frames[name], scale, title || name); }
 
 /** One wrestler cut from the icon: "red" (left) or "blue" (right), for portraits. */
-function partnerSVG(side, scale = 3, title = "") {
-  return rowsSVG(MASCOT.frames[side === "red" ? "mascot/red" : "mascot/blue"], scale, title);
+// Trunk colors for a bigger roster: partner N wears TRUNKS[(N - 1) % 6], so a lineup of four doesn't look like two pairs of twins.
+const TRUNKS = [["#d94141", "#a82f2f"], ["#3f6fd1", "#2c4f9c"], ["#5fc25a", "#3d8a3a"], ["#f0913a", "#b8661f"], ["#2bb3a6", "#1d7f76"], ["#e05fa0", "#a83f74"]];
+/** One wrestler cut from the icon: "red" (left) or "blue" (right), for portraits; pass a partner number for its own trunks. */
+function partnerSVG(side, scale = 3, title = "", number = 0) {
+  const red = side === "red";
+  const [main, shade] = TRUNKS[(Math.max(number, 1) - 1) % TRUNKS.length];
+  const recolor = number ? (red ? { B: main, y: shade } : { w: main, Y: shade }) : {};
+  return rowsSVG(MASCOT.frames[red ? "mascot/red" : "mascot/blue"], scale, title, recolor);
 }
 
 if (typeof module !== "undefined") module.exports = { MASCOT, mascotSVG, partnerSVG, rowsSVG };

@@ -131,12 +131,31 @@ def live_sessions(active_number: str | None) -> list[dict]:
 
 
 def switch(target: str | None = None, strategy: str = "best") -> dict:
+    """Tag a partner in: a number, ring name or email; "next" for the next one in line; None for the best."""
+    if target == "next":  # the lineup order, skipping anyone at their limit
+        target, strategy = None, "next-available"
     args = ["switch", target, "--json"] if target else ["switch", "--strategy", strategy, "--json"]
     result = cswap_json(*args, timeout=90)
     to = result.get("to") or {}
     if to.get("number") is not None:
         store.record_active(str(to["number"]), to.get("email", ""), source="switch")
     return result
+
+
+def _identity(r: dict) -> tuple:
+    return (r.get("email"), r.get("organizationUuid"))
+
+
+def move(who: str, slot: str) -> dict:
+    """Move a partner to another spot in the lineup (cswap move; an occupied spot swaps the two).
+    Tag Team's history is keyed by partner number, so it's renumbered to follow each partner."""
+    before = {_identity(r): str(r["number"]) for r in list_accounts().get("accounts", [])}
+    res = _plain(run_cswap("move", who, str(slot)))
+    after = {_identity(r): str(r["number"]) for r in list_accounts().get("accounts", [])}
+    renumbered = {old: after[k] for k, old in before.items() if k in after and after[k] != old}
+    if renumbered:
+        store.renumber(renumbered)
+    return {**res, "renumbered": renumbered}
 
 
 def add_current(alias: str | None = None, slot: int | None = None) -> dict:

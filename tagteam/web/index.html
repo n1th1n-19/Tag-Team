@@ -221,7 +221,7 @@ footer { margin-top: 26px; font-size: 19px; color: var(--muted); }
         <h2>SIGN A PARTNER</h2>
         <div>Sign the account Claude Code is logged in as now.</div>
         <form class="row" id="sign"><input name="alias" placeholder="Ring name (optional)" autocomplete="off"><button class="go">Sign</button></form>
-        <p class="muted">New partner: run /login in Claude Code, log in to the other account, then press Sign again. Your current partner is signed first, so nobody's lost.</p>
+        <p class="muted">New partner: run /login in Claude Code, log in to another account, then press Sign again. Your current partner is signed first, so nobody's lost.</p>
       </div>
       <div class="box">
         <h2>SIGN BY CONTRACT</h2>
@@ -314,7 +314,7 @@ function renderAlerts() {
       const s = a.suggest;
       out.push(`<div class="tagme ${a.ko ? "ko" : ""} flash" role="alert"><div>${partnerSVG("red", 3, "worn down")}</div>
         <div class="grow"><div class="big">${a.ko ? "DOWN FOR THE COUNT!" : "REACH FOR THE TAG!"}</div><div>${esc(a.message)}.${s ? ` ${esc(s.label)} is fresh (${Math.round(s.pct)}% used).` : " Nobody on the apron has stamina left."}</div></div>
-        ${s ? `<button class="go" data-tag="${s.number}">TAG ME &gt; ${esc(s.label)}</button>` : ""}<button data-tag="best">Hot tag: best</button></div>`);
+        ${s ? `<button class="go" data-tag="${s.number}">TAG ME &gt; ${esc(s.label)}</button>` : ""}<button data-tag="best">Hot tag: best</button>${S.accounts.length > 2 ? `<button data-tag="next">Next in line</button>` : ""}</div>`);
     } else out.push(`<div class="note">${a.kind === "update" ? "⬆ " : ""}${esc(a.message)}</div>`);
   }
   for (const e of S.errors) out.push(`<div class="note">claude-swap: ${esc(e)}</div>`);
@@ -331,7 +331,7 @@ function renderCards() {
       : `<button class="${a.nearLimit ? "" : "go"}" data-tag="${a.number}">Tag in</button>`;
     return `<div class="card ${a.active ? "in" : ""} ${a.nearLimit ? "worn" : ""} ${a.disabled ? "bench" : ""}">
       ${ko ? `<span class="ko">K.O.</span>` : ""}
-      <div class="portrait">${partnerSVG(i % 2 ? "blue" : "red", 3, a.label)}</div>
+      <div class="portrait">${partnerSVG(a.number % 2 ? "red" : "blue", 3, a.label, a.number)}</div>
       <div>
         <div class="name">${esc(a.label)}</div>
         <div class="email">#${a.number} · ${esc(a.email)}</div>

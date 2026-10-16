@@ -22,6 +22,7 @@ Tag Team does that for your Claude accounts:
                     (life bars count all of Claude; match history counts Claude Code on this computer)
   career            all-time totals     purse           estimated API price of those tokens
   match card        one Claude Code session: its tokens, fresh tokens and purse
+  lineup            the partners in number order    next in line  the next one in it who isn't worn down
   before the bell   usage from before Tag Team started keeping score
 
 Tag Team uses generic wrestling words; it isn't connected to any wrestling company

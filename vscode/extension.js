@@ -122,13 +122,13 @@ async function promptUpdate(up) {
 }
 
 async function promptTagMe(near) {
-  const actions = [...(near.suggest ? [`TAG ME > ${near.suggest.label}`] : []), 'Hot tag: best', 'Open the ring']
+  const actions = [...(near.suggest ? [`TAG ME > ${near.suggest.label}`] : []), 'Hot tag: best', ...(snap.accounts.length > 2 ? ['Next in line'] : []), 'Open the ring']
   const head = near.ko ? 'DOWN FOR THE COUNT!' : 'REACH FOR THE TAG!'
   const fresh = near.suggest ? ` ${near.suggest.label} is fresh (${Math.round(near.suggest.pct)}% used).` : ' Nobody on the apron has stamina left.'
   const pick = await vscode.window.showWarningMessage(`${head} ${near.message}.${fresh}`, ...actions)
   if (!pick) return
   if (pick === 'Open the ring') return openRing()
-  await doTag(pick === 'Hot tag: best' ? ['tag-out', '--json'] : ['tag-in', String(near.suggest.number), '--json'])
+  await doTag(pick === 'Hot tag: best' ? ['tag-out', '--json'] : pick === 'Next in line' ? ['tag-out', '--next', '--json'] : ['tag-in', String(near.suggest.number), '--json'])
 }
 
 async function doTag(args) {
@@ -147,6 +147,7 @@ async function quickTagIn() {
   if (!snap) return
   const items = [
     { label: '$(megaphone) Hot tag', description: snap.best ? `${snap.best.label}, ${Math.round(snap.best.pct)}% used` : 'the partner with the most stamina', target: 'best' },
+    ...(snap.accounts.length > 2 ? [{ label: '$(arrow-right) Next in line', description: 'the next partner in the lineup, skipping anyone worn down', target: 'next' }] : []),
     ...snap.accounts.map(a => {
       const u = usageOf(a)
       return {
@@ -159,7 +160,7 @@ async function quickTagIn() {
     }),
   ]
   const pick = await vscode.window.showQuickPick(items, { title: 'Tag a partner into the ring', placeHolder: 'Who should Claude Code use?', matchOnDetail: true })
-  if (pick && !pick.active) await doTag(pick.target === 'best' ? ['tag-out', '--json'] : ['tag-in', pick.target, '--json'])
+  if (pick && !pick.active) await doTag(pick.target === 'best' ? ['tag-out', '--json'] : pick.target === 'next' ? ['tag-out', '--next', '--json'] : ['tag-in', pick.target, '--json'])
 }
 
 function ringHtml(context, webview) {
