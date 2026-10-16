@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tag-team"
-version = "0.4.4"
+version = "0.4.5"
 description = "Tag Team Wrestling for Claude Code: your work and personal Claude accounts side by side, with usage life bars, a match history of your token use and one-click switching, built on claude-swap"
 readme = "README.md"
 requires-python = ">=3.12"
