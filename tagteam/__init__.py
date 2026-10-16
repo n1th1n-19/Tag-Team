@@ -7,4 +7,4 @@ import sys as _sys
 if _sys.platform == "win32":
     _os.environ.setdefault("NoDefaultCurrentDirectoryInExePath", "1")
 
-__version__ = "0.4.5"
+__version__ = "0.4.6"
