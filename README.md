@@ -213,6 +213,12 @@ python scripts/package.py      # tag-team.vsix (needs Node) + the three release 
 
 Releases: bump the version in `pyproject.toml`, `tagteam/__init__.py`, `plugin/.claude-plugin/plugin.json` and `vscode/package.json`, then push a tag like `v0.2.3`. GitHub Actions runs the tests on all three OSes, builds the zips and the vsix once, runs the one-liners against that build (install, `tagteam --version`, uninstall, nothing left behind) on macOS, Linux and Windows PowerShell 5.1, attests the files, and publishes the release. If any step fails, nothing is published.
 
+## A note before you dig in
+
+I apologize to whoever finds this repo: I built this entire project with AI.
+
+The idea, the decisions and the testing are mine, but most of the code was written with AI assistance. That means there may be rough edges, odd patterns, or things a careful developer would have done differently. If you're here to learn from the code, double-check anything before you copy it into your own work. If you spot something broken or questionable, issues and pull requests are very welcome. I'm still learning, and this project is part of that.
+
 ## License
 
 MIT. Fonts: SIL Open Font License 1.1.
