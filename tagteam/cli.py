@@ -384,14 +384,17 @@ def desktop_notify(title: str, message: str) -> str | None:
         script = ["-e", "on run argv", "-e", "display notification (item 2 of argv) with title (item 1 of argv)", "-e", "end run"]
         tries = [("osascript", ["osascript", *script, title, message], None)]
     elif sys.platform.startswith("win"):
-        ps = ("Add-Type -AssemblyName System.Windows.Forms; $n = New-Object System.Windows.Forms.NotifyIcon; "
-              "$n.Icon = [System.Drawing.SystemIcons]::Information; $n.Visible = $true; "
-              "$n.ShowBalloonTip(8000, $env:TT_TITLE, $env:TT_MSG, 'Info'); Start-Sleep -Seconds 8; $n.Dispose()")
+        # Prints "ok" once the balloon is up, then stays alive so it shows; any failure exits 1 without "ok".
+        ps = ("$ErrorActionPreference = 'Stop'; try { Add-Type -AssemblyName System.Windows.Forms; "
+              "$n = New-Object System.Windows.Forms.NotifyIcon; $n.Icon = [System.Drawing.SystemIcons]::Information; "
+              "$n.Visible = $true; $n.ShowBalloonTip(8000, $env:TT_TITLE, $env:TT_MSG, 'Info'); "
+              "[Console]::Out.WriteLine('ok'); [Console]::Out.Flush() } catch { exit 1 }; Start-Sleep -Seconds 8; $n.Dispose()")
         tries = [("powershell", ["powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", ps],
                   {**os.environ, "TT_TITLE": title, "TT_MSG": message})]
     else:
         # json.dumps gives a valid GVariant string literal (quotes and backslashes escaped).
-        tries = [("notify-send", ["notify-send", "--app-name=Tag Team", title, message], None),
+        # notify-send runs the body through g_strcompress, which would turn a literal \n into a newline.
+        tries = [("notify-send", ["notify-send", "--app-name=Tag Team", title, message.replace("\\", "\\\\")], None),
                  ("gdbus", ["gdbus", "call", "--session", "--dest", "org.freedesktop.Notifications",
                             "--object-path", "/org/freedesktop/Notifications", "--method", "org.freedesktop.Notifications.Notify", "--",
                             '"Tag Team"', "0", '""', json.dumps(title, ensure_ascii=False), json.dumps(message, ensure_ascii=False), "[]", "{}", "-1"], None)]
@@ -399,10 +402,17 @@ def desktop_notify(title: str, message: str) -> str | None:
         if not shutil.which(argv[0]):
             continue
         try:
-            if name == "powershell":  # the balloon lives as long as the process: don't wait on it
-                subprocess.Popen(argv, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-                return name
+            if name == "powershell":  # the balloon lives as long as the process: wait for its "ok", not its exit
+                import threading
+                proc = subprocess.Popen(argv, env=env, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                guard = threading.Timer(20, proc.kill)  # a hung Add-Type must not hang us
+                guard.start()
+                line = proc.stdout.readline()
+                guard.cancel()
+                if line.strip() == b"ok":
+                    return name
+                continue
             if subprocess.run(argv, env=env, capture_output=True, timeout=10).returncode == 0:
                 return name
         except (OSError, subprocess.SubprocessError):

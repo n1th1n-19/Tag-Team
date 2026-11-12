@@ -6,18 +6,20 @@ const ran: string[][] = []
 
 const runs: any[] = []
 
-function fakeTagteam(on: any) {
-  mock.clock(on)
+function fakeTagteam(on: any, notifyFails = false) {
+  const clock = mock.clock(on)
   // A planted ./tagteam in the project and a relative PATH entry must never be picked.
   mock.env(on, { PATH: '.:/opt/tt/bin:/usr/bin', HOME: '/home/u' })
   on('fs.exists', ($: any, e: any) => ({ value: e.path === '/opt/tt/bin/tagteam' || e.path === './tagteam' || e.path === './/tagteam' }))
   on('process.run', ($: any, e: any) => {
     ran.push([...e.argv])
     runs.push(e)
+    if (notifyFails && e.argv[1] === 'notify') return { value: { exitCode: 1, stdout: '{"ok": false, "error": "no desktop notifier found"}', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     const out = e.argv[1] === 'state' ? JSON.stringify(SNAP) : JSON.stringify({ ok: true, switched: true, message: 'TAG! acct1 is in the ring.' })
     return { value: { exitCode: 0, stdout: out, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
   on('ui.open', () => ({ value: { isPlaced: true } }))
+  return clock
 }
 
 const PANE_PROPS = {
@@ -93,14 +95,16 @@ describe('notify me', () => {
   // Desktop notifications go out as `tagteam notify MESSAGE --title T`.
   const sent = () => ran.filter(a => a[1] === 'notify').map(a => a[2])
   const asking = (on: any) => {
-    fakeTagteam(on)
+    const clock = fakeTagteam(on)
     on('tool.check', () => ({ decision: 'ask' }))
+    return clock
   }
 
   test('pings when Claude puts a question to the person', async ($: any, on: any) => {
     ran.length = 0
-    asking(on)
+    const clock = asking(on)
     await $.tool.call({ tool: 'AskUserQuestion', questions: [] }).catch(() => {})
+    await clock.settle() // the ping runs on a timer, after the permission check returns
     expect(sent()).toContain('Claude has a question for you')
   })
 
@@ -112,10 +116,28 @@ describe('notify me', () => {
     expect(r.text).toBe('Notification sent.')
   })
 
+  test('falls back to Claude Code\'s notification when the CLI cannot notify', async ($: any, on: any) => {
+    const via: string[] = []
+    fakeTagteam(on, true)
+    on('ui.notify', ($: any, e: any) => { via.push(e.text); return { value: { isSent: true, channel: 'terminal' } } })
+    const r = await $.tool.call({ tool: 'mcp__tag-team__notify', message: 'Deploy done' })
+    expect(via).toEqual(['Deploy done'])
+    expect(r.text).toBe('Notification sent.')
+  })
+
+  test('tells Claude when neither path can notify', async ($: any, on: any) => {
+    fakeTagteam(on, true)
+    on('ui.notify', () => ({ value: { isSent: false, reason: 'no-channel' } }))
+    const r = await $.tool.call({ tool: 'mcp__tag-team__notify', message: 'Deploy done' })
+    expect(r.isError).toBe(true)
+    expect(r.text).toMatch(/Not sent/)
+  })
+
   test('stays quiet with notifyMe off', { options: { notifyMe: false } }, async ($: any, on: any) => {
     ran.length = 0
-    asking(on)
+    const clock = asking(on)
     await $.tool.call({ tool: 'Bash', command: 'ls' }).catch(() => {})
+    await clock.settle()
     expect(sent()).toEqual([])
   })
 })

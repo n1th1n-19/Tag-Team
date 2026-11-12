@@ -419,6 +419,25 @@ def test_desktop_notify_passes_text_as_args_never_a_shell():
     with mock.patch.object(shutil, "which", lambda b: None):
         assert cli.desktop_notify("T", "m") is None
 
+    calls.clear()  # notify-send unescapes the body (g_strcompress): a literal backslash must be doubled
+    with mock.patch.object(sys, "platform", "linux"), mock.patch.object(subprocess, "run", fake_run), \
+            mock.patch.object(shutil, "which", lambda b: True):
+        assert cli.desktop_notify("T", "a\\nb") == "notify-send"
+    assert calls[0][-1] == "a\\\\nb", calls[0]
+
+    class FakeProc:  # PowerShell counts only once the script prints "ok"
+        def __init__(self, out):
+            import io
+            self.stdout = io.BytesIO(out)
+
+        def kill(self):
+            pass
+
+    for out, want in ((b"ok\r\n", "powershell"), (b"", None)):
+        with mock.patch.object(sys, "platform", "win32"), mock.patch.object(shutil, "which", lambda b: True), \
+                mock.patch.object(subprocess, "Popen", lambda *a, **k: FakeProc(out)):
+            assert cli.desktop_notify("T", "m") == want, out
+
 
 if __name__ == "__main__":
     for name, fn in list(globals().items()):

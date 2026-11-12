@@ -190,7 +190,7 @@ function afterRefresh($: any, s: Snapshot) {
   if (near && key !== alerted) {
     const hint = near.suggest ? ` ${near.suggest.label} is fresh (${Math.round(near.suggest.pct)}%). /tag-out to tag them in.` : ''
     $.ui.toast(`${near.ko ? 'DOWN FOR THE COUNT' : 'REACH FOR THE TAG'}: ${near.message}.${hint}`)
-    void desktop($, `${near.message}.${hint}`, 'Tag Team: TAG ME!')
+    pingLater($, `${near.message}.${hint}`, 'Tag Team: TAG ME!')
   }
   alerted = key
   if (s.auto.enabled && !s.auto.serviceInstalled) void autoTick($)
@@ -508,6 +508,11 @@ async function ping($: any, text: string, title: string) {
   if (NOTIFY) await desktop($, text, title)
 }
 
+/** Fire-and-forget ping on a timer: work left unawaited in a hook dies with its dispatch, a timer doesn't. */
+function pingLater($: any, text: string, title: string) {
+  $.clock.after(0, () => { void ping($, text, title) })
+}
+
 /** Serves mcp__tag-team__notify: a notification Claude decides to send. */
 async function claudeNotify($: any, e: any) {
   const say = (text: string, isError = false) => (isError ? { isError: true as const, result: text, text } : { result: text, text })
@@ -521,8 +526,8 @@ async function claudeNotify($: any, e: any) {
 function pingDone($: any, e: any) {
   // ponytail: 20s turn = "they probably walked away"; no window-focus signal to read.
   if (e.agentId !== undefined || e.reason === 'aborted' || e.durationMs < 20000) return
-  const line = (e.answer || '').trim().split('\n')[0]?.slice(0, 140) || 'Done.'
-  ping($, e.reason === 'answer' ? line : 'The turn stopped on an error.', 'Tag Team: Claude is done')
+  // Generic text: the answer itself stays out of the OS notification center.
+  pingLater($, e.reason === 'answer' ? 'Claude finished. Your turn.' : 'The turn stopped on an error.', 'Tag Team: Claude is done')
 }
 
 export const register: Register = (on, options) => {
@@ -540,7 +545,7 @@ export const register: Register = (on, options) => {
     const r = await next(e)
     // tool_use_id: a real call, not a $.tool.check query; approver host: a program answers, not the person.
     if (r.decision === 'ask' && e.tool_use_id && (e as { approver?: string }).approver !== 'host')
-      await ping($, QUESTION[e.tool] ?? `Claude wants to use ${e.tool}. Approve or deny in the session.`, 'Tag Team: your call')
+      pingLater($, QUESTION[e.tool] ?? `Claude wants to use ${e.tool}. Approve or deny in the session.`, 'Tag Team: your call')
     return r
   })
 
