@@ -88,3 +88,34 @@ describe('tag-team ring', () => {
     expect(last.init.cwd).toBe('/home/u')
   })
 })
+
+describe('notify me', () => {
+  // Desktop notifications go out as `tagteam notify MESSAGE --title T`.
+  const sent = () => ran.filter(a => a[1] === 'notify').map(a => a[2])
+  const asking = (on: any) => {
+    fakeTagteam(on)
+    on('tool.check', () => ({ decision: 'ask' }))
+  }
+
+  test('pings when Claude puts a question to the person', async ($: any, on: any) => {
+    ran.length = 0
+    asking(on)
+    await $.tool.call({ tool: 'AskUserQuestion', questions: [] }).catch(() => {})
+    expect(sent()).toContain('Claude has a question for you')
+  })
+
+  test('Claude can send its own notification', async ($: any, on: any) => {
+    ran.length = 0
+    fakeTagteam(on)
+    const r = await $.tool.call({ tool: 'mcp__tag-team__notify', message: 'Tests failed on main' })
+    expect(sent()).toContain('Tests failed on main')
+    expect(r.text).toBe('Notification sent.')
+  })
+
+  test('stays quiet with notifyMe off', { options: { notifyMe: false } }, async ($: any, on: any) => {
+    ran.length = 0
+    asking(on)
+    await $.tool.call({ tool: 'Bash', command: 'ls' }).catch(() => {})
+    expect(sent()).toEqual([])
+  })
+})

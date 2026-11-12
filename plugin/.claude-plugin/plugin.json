@@ -27,6 +27,12 @@
       "title": "Refresh every (seconds)",
       "description": "How often usage is re-read (minimum 30)",
       "default": 60
+    },
+    "notifyMe": {
+      "type": "boolean",
+      "title": "Notify me",
+      "description": "Desktop notification when Claude needs your approval, asks a question, or finishes a long turn",
+      "default": true
     }
   }
 }

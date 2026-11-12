@@ -399,6 +399,27 @@ def test_score_note_splits_cache_reads():
     assert "98% cache reads" in note and "20.0M fresh" in note, note
 
 
+def test_desktop_notify_passes_text_as_args_never_a_shell():
+    import shutil
+    import subprocess
+    from unittest import mock
+    calls = []
+
+    def fake_run(argv, **kw):
+        calls.append(argv)
+        return subprocess.CompletedProcess(argv, 0)
+
+    msg = 'say "hi" \\ $(rm -rf ~) 🥊'
+    with mock.patch.object(sys, "platform", "linux"), mock.patch.object(subprocess, "run", fake_run), \
+            mock.patch.object(shutil, "which", lambda b: b == "gdbus"):  # no notify-send, like COSMIC
+        assert cli.desktop_notify("Title", msg) == "gdbus"
+    argv = calls[0]
+    assert "--" in argv and argv[-1] == "-1", argv  # -1 after "--" or gdbus reads it as a flag
+    assert json.loads(argv[-4]) == msg  # a GVariant literal that round-trips quotes and backslashes
+    with mock.patch.object(shutil, "which", lambda b: None):
+        assert cli.desktop_notify("T", "m") is None
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

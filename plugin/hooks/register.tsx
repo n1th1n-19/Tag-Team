@@ -190,7 +190,7 @@ function afterRefresh($: any, s: Snapshot) {
   if (near && key !== alerted) {
     const hint = near.suggest ? ` ${near.suggest.label} is fresh (${Math.round(near.suggest.pct)}%). /tag-out to tag them in.` : ''
     $.ui.toast(`${near.ko ? 'DOWN FOR THE COUNT' : 'REACH FOR THE TAG'}: ${near.message}.${hint}`)
-    void $.ui.notify(`${near.message}.${hint}`, { title: 'Tag Team: TAG ME!' }).catch(() => {})
+    void desktop($, `${near.message}.${hint}`, 'Tag Team: TAG ME!')
   }
   alerted = key
   if (s.auto.enabled && !s.auto.serviceInstalled) void autoTick($)
@@ -494,10 +494,55 @@ async function dashboard($: any, e: any) {
   return <Box flexDirection="column" gap={1}>{header}{status}{body}</Box>
 }
 
+let NOTIFY = true
+const QUESTION: Record<string, string> = { AskUserQuestion: 'Claude has a question for you', ExitPlanMode: 'Claude has a plan for you to approve' }
+
+/** A real OS notification via `tagteam notify` (notify-send/gdbus, osascript, PowerShell); Claude Code's own channel if that fails. */
+async function desktop($: any, text: string, title: string): Promise<boolean> {
+  try { await tagteam($, ['notify', text, '--title', title, '--json']); return true } catch { /* old CLI or no notifier */ }
+  const r = await $.ui.notify(text, { title }).catch(() => ({ isSent: false }))
+  return r.isSent
+}
+
+async function ping($: any, text: string, title: string) {
+  if (NOTIFY) await desktop($, text, title)
+}
+
+/** Serves mcp__tag-team__notify: a notification Claude decides to send. */
+async function claudeNotify($: any, e: any) {
+  const say = (text: string, isError = false) => (isError ? { isError: true as const, result: text, text } : { result: text, text })
+  if (!NOTIFY) return say('Notifications are off (Tag Team "Notify me" setting). Tell the user in the chat instead.', true)
+  const message = String(e.message ?? '').trim()
+  if (!message) return say('message is required.', true)
+  return (await desktop($, message, String(e.title || 'Tag Team: Claude')))
+    ? say('Notification sent.') : say('Not sent: no desktop notifier worked. Tell the user in the chat instead.', true)
+}
+
+function pingDone($: any, e: any) {
+  // ponytail: 20s turn = "they probably walked away"; no window-focus signal to read.
+  if (e.agentId !== undefined || e.reason === 'aborted' || e.durationMs < 20000) return
+  const line = (e.answer || '').trim().split('\n')[0]?.slice(0, 140) || 'Done.'
+  ping($, e.reason === 'answer' ? line : 'The turn stopped on an error.', 'Tag Team: Claude is done')
+}
+
 export const register: Register = (on, options) => {
+  NOTIFY = options.notifyMe !== false
   BIN = String(options.tagteamPath || 'tagteam')
   RESOLVED = null
   REFRESH_MS = Math.max(30, Number(options.refreshSeconds) || 60) * 1000
+
+  // Claude's own notifications: the model calls mcp__tag-team__notify.
+  // on as any: the mcp tool's typed matcher sends tsc into TS2589 (too deep)
+  ;(on as any)('tool.call', { tool: 'mcp__tag-team__notify' }, async ($: any, e: any) => claudeNotify($, e))
+
+  // Ping the person when Claude needs them, so they can work in another window.
+  on('tool.check', async ($, e, next) => {
+    const r = await next(e)
+    // tool_use_id: a real call, not a $.tool.check query; approver host: a program answers, not the person.
+    if (r.decision === 'ask' && e.tool_use_id && (e as { approver?: string }).approver !== 'host')
+      await ping($, QUESTION[e.tool] ?? `Claude wants to use ${e.tool}. Approve or deny in the session.`, 'Tag Team: your call')
+    return r
+  })
 
   on('session.start', async ($, e, next) => {
     // One refused name (a clash with another plugin) must not stop the rest.
@@ -506,6 +551,17 @@ export const register: Register = (on, options) => {
       $.command.register({ name: 'tag-in', description: 'Tag a partner into the ring (switch Claude account)', argumentHint: '[best|N|ring name]' }),
       $.command.register({ name: 'tag-out', description: 'Hot tag: hand off to the partner with the most stamina left (/tag-out next: the next one in line)' }),
       $.command.register({ name: 'roster', description: 'Ring card: roster, stamina and match history in the chat' }),
+      $.tool.register({
+        name: 'notify', isDeferred: false,
+        description: 'Send the user a desktop notification. Use it when you need the user (a decision, a blocker, input you cannot proceed without) or have news worth pulling them back for (long task finished, tests failed, deploy done) and they may be in another window. Keep it to one short sentence. Do not use it for routine progress.',
+        inputSchema: {
+          type: 'object', required: ['message'],
+          properties: {
+            message: { type: 'string', description: 'One short sentence: what happened or what you need.' },
+            title: { type: 'string', description: 'Optional heading, a few words.' },
+          },
+        },
+      }),
       $.command.register({ name: 'blind-tag', description: 'Automatic tagging before a partner is worn down', argumentHint: '[on|off|preview|status]' }),
     ])
     void refresh($)
@@ -515,6 +571,7 @@ export const register: Register = (on, options) => {
 
   on('turn.complete', async ($, e, next) => {
     if ((await $.clock.now()) - lastRefresh > 20_000) void refresh($)
+    pingDone($, e)
     return next(e)
   })
 
