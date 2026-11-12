@@ -247,6 +247,9 @@ def build_parser() -> argparse.ArgumentParser:
     up.add_argument("--force", action="store_true", help="reinstall even if you're on the latest")
     up.add_argument("--auto", action="store_true", help=argparse.SUPPRESS)
     up.add_argument("--notify", choices=["on", "off"], help="show a notice when a new release is out (checks GitHub once a day; off unless you turn it on)")
+    nt = cmd("notify", "show a desktop notification (Claude Code calls this when it needs you)")
+    nt.add_argument("message")
+    nt.add_argument("--title", default="Tag Team")
     cmd("cleanup", "remove old plugin copies and leftover downloads (runs after every install and update)")
     au = cmd("auto-update", "check for and install new releases once a week: on | off | status")
     au.add_argument("action", nargs="?", default="status", choices=["on", "off", "status"])
@@ -353,6 +356,10 @@ def _dispatch(p, args, as_json: bool) -> int:
             emit(updater.check(), as_json)
         else:
             emit(updater.update(force=args.force, quiet=args.auto), as_json)
+    elif c == "notify":
+        how = desktop_notify(args.title, args.message)
+        emit({"ok": bool(how), "via": how, **({} if how else {"error": "no desktop notifier found (install notify-send)"})}, as_json)
+        return 0 if how else 1
     elif c == "cleanup":
         from tagteam import updater
         emit(updater.cleanup(), as_json)
@@ -366,6 +373,51 @@ def _dispatch(p, args, as_json: bool) -> int:
             cfg = store.set_config(threshold=args.percent)
             emit({"ok": True, "tagOutPoint": cfg["threshold"], "message": f"TAG ME shows at {cfg['threshold']:.0f}% stamina used"}, as_json)
     return 0
+
+
+def desktop_notify(title: str, message: str) -> str | None:
+    """Raise a native OS notification; returns the tool used, or None. Text goes in as argv/env, never into a script."""
+    import shutil
+    import subprocess
+    title, message = title[:200], message[:1000]
+    if sys.platform == "darwin":
+        script = ["-e", "on run argv", "-e", "display notification (item 2 of argv) with title (item 1 of argv)", "-e", "end run"]
+        tries = [("osascript", ["osascript", *script, title, message], None)]
+    elif sys.platform.startswith("win"):
+        # Prints "ok" once the balloon is up, then stays alive so it shows; any failure exits 1 without "ok".
+        ps = ("$ErrorActionPreference = 'Stop'; try { Add-Type -AssemblyName System.Windows.Forms; "
+              "$n = New-Object System.Windows.Forms.NotifyIcon; $n.Icon = [System.Drawing.SystemIcons]::Information; "
+              "$n.Visible = $true; $n.ShowBalloonTip(8000, $env:TT_TITLE, $env:TT_MSG, 'Info'); "
+              "[Console]::Out.WriteLine('ok'); [Console]::Out.Flush() } catch { exit 1 }; Start-Sleep -Seconds 8; $n.Dispose()")
+        tries = [("powershell", ["powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", ps],
+                  {**os.environ, "TT_TITLE": title, "TT_MSG": message})]
+    else:
+        # json.dumps gives a valid GVariant string literal (quotes and backslashes escaped).
+        # notify-send runs the body through g_strcompress, which would turn a literal \n into a newline.
+        tries = [("notify-send", ["notify-send", "--app-name=Tag Team", title, message.replace("\\", "\\\\")], None),
+                 ("gdbus", ["gdbus", "call", "--session", "--dest", "org.freedesktop.Notifications",
+                            "--object-path", "/org/freedesktop/Notifications", "--method", "org.freedesktop.Notifications.Notify", "--",
+                            '"Tag Team"', "0", '""', json.dumps(title, ensure_ascii=False), json.dumps(message, ensure_ascii=False), "[]", "{}", "-1"], None)]
+    for name, argv, env in tries:
+        if not shutil.which(argv[0]):
+            continue
+        try:
+            if name == "powershell":  # the balloon lives as long as the process: wait for its "ok", not its exit
+                import threading
+                proc = subprocess.Popen(argv, env=env, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                guard = threading.Timer(20, proc.kill)  # a hung Add-Type must not hang us
+                guard.start()
+                line = proc.stdout.readline()
+                guard.cancel()
+                if line.strip() == b"ok":
+                    return name
+                continue
+            if subprocess.run(argv, env=env, capture_output=True, timeout=10).returncode == 0:
+                return name
+        except (OSError, subprocess.SubprocessError):
+            continue
+    return None
 
 
 def _tag_message(res: dict) -> dict:

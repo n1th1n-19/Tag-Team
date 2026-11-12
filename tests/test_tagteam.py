@@ -399,6 +399,46 @@ def test_score_note_splits_cache_reads():
     assert "98% cache reads" in note and "20.0M fresh" in note, note
 
 
+def test_desktop_notify_passes_text_as_args_never_a_shell():
+    import shutil
+    import subprocess
+    from unittest import mock
+    calls = []
+
+    def fake_run(argv, **kw):
+        calls.append(argv)
+        return subprocess.CompletedProcess(argv, 0)
+
+    msg = 'say "hi" \\ $(rm -rf ~) 🥊'
+    with mock.patch.object(sys, "platform", "linux"), mock.patch.object(subprocess, "run", fake_run), \
+            mock.patch.object(shutil, "which", lambda b: b == "gdbus"):  # no notify-send, like COSMIC
+        assert cli.desktop_notify("Title", msg) == "gdbus"
+    argv = calls[0]
+    assert "--" in argv and argv[-1] == "-1", argv  # -1 after "--" or gdbus reads it as a flag
+    assert json.loads(argv[-4]) == msg  # a GVariant literal that round-trips quotes and backslashes
+    with mock.patch.object(shutil, "which", lambda b: None):
+        assert cli.desktop_notify("T", "m") is None
+
+    calls.clear()  # notify-send unescapes the body (g_strcompress): a literal backslash must be doubled
+    with mock.patch.object(sys, "platform", "linux"), mock.patch.object(subprocess, "run", fake_run), \
+            mock.patch.object(shutil, "which", lambda b: True):
+        assert cli.desktop_notify("T", "a\\nb") == "notify-send"
+    assert calls[0][-1] == "a\\\\nb", calls[0]
+
+    class FakeProc:  # PowerShell counts only once the script prints "ok"
+        def __init__(self, out):
+            import io
+            self.stdout = io.BytesIO(out)
+
+        def kill(self):
+            pass
+
+    for out, want in ((b"ok\r\n", "powershell"), (b"", None)):
+        with mock.patch.object(sys, "platform", "win32"), mock.patch.object(shutil, "which", lambda b: True), \
+                mock.patch.object(subprocess, "Popen", lambda *a, **k: FakeProc(out)):
+            assert cli.desktop_notify("T", "m") == want, out
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):
