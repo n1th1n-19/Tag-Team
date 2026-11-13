@@ -134,7 +134,7 @@ class Island:
         if tk.TkVersion < 8.7 or sys.platform.startswith("linux"):
             title = "".join(ch for ch in title if ord(ch) <= 0xFFFF).strip()
         # Tk on X11 draws "…" as junk ("®f") in every font tried, so the island spells it "...".
-        dots = lambda s: s.replace("\u2026", "...")  # noqa: E731
+        dots = lambda s: s.replace("\u2026", "...")
         self.title, self.message, self.session = dots(title), dots(message), dots(session.strip())
         root = self.root = tk.Tk()
         root.withdraw()
