@@ -155,6 +155,7 @@ footer { margin-top: 26px; font-size: 19px; color: var(--muted); }
       <button role="tab" aria-selected="true" data-tab="ring">Ring</button>
       <button role="tab" aria-selected="false" data-tab="roster">Roster</button>
       <button role="tab" aria-selected="false" data-tab="blind">Blind tag</button>
+      <button role="tab" aria-selected="false" data-tab="notify">Notify</button>
       <button role="tab" aria-selected="false" data-tab="rules">Rules</button>
       <button id="refresh" title="Fetch fresh stamina">Refresh</button>
       <button id="crt" title="Scanlines on or off">CRT</button>
@@ -247,6 +248,18 @@ footer { margin-top: 26px; font-size: 19px; color: var(--muted); }
       <div class="settings" id="autoSettings"></div>
     </div>
     <div class="box"><h2>RECENT BLIND TAGS</h2><table id="autoEvents"></table></div>
+  </section>
+
+  <section data-panel="notify" class="hidden">
+    <div class="box">
+      <h2>RING-SIDE CALLS</h2>
+      <div class="switch">
+        <button data-notify="enabled" aria-pressed="true">Notifications: on</button>
+        <button data-notify="island" aria-pressed="true">Island: on</button>
+        <button data-notify="sound" aria-pressed="true">Ring bell: on</button>
+      </div>
+      <p id="notifyMode"></p>
+    </div>
   </section>
 
   <section data-panel="rules" class="hidden">
@@ -444,6 +457,20 @@ function renderBlind() {
     : `<tr><td>${new Date(e.ts).toLocaleString()}</td><td colspan="2" class="muted">${esc(e.event)}</td></tr>`).join("") || `<tr><td colspan="3" class="muted">No blind tags yet.</td></tr>`);
 }
 
+const NOTIFY = { enabled: "Notifications", island: "Island", sound: "Ring bell" };
+function renderNotify() {
+  const N = S.notify || { enabled: true, island: true, sound: true };
+  document.querySelectorAll("[data-notify]").forEach(b => {
+    const on = !!N[b.dataset.notify];
+    b.textContent = `${NOTIFY[b.dataset.notify]}: ${on ? "on" : "off"}`;
+    b.className = on ? "go" : "";
+    b.setAttribute("aria-pressed", String(on));
+    b.disabled = b.dataset.notify !== "enabled" && !N.enabled;  // island and bell only matter while pings are on
+  });
+  $("notifyMode").textContent = !N.enabled ? "Off. Claude won't ping you; check back yourself."
+    : `${N.island ? "The ring-side island springs open at the top of your screen" : "Your system's own notification pops up"}${N.sound ? ", with the ring bell" : ", silently"}, when Claude needs you or finishes.`;
+}
+
 function render() {
   const a = S.active;
   $("who").innerHTML = a.label ? `IN THE RING: <span class="cursor">${esc(a.label)}</span>${a.managed ? "" : " (not signed)"}${S.alerts.some(x => x.kind === "near-limit") ? ` <span class="blink" style="color:var(--red)">PRESS TAG</span>` : ""}` : "Nobody in the ring";
@@ -452,7 +479,7 @@ function render() {
     (S.tokens.heatmap["?"] ? `<option value="?">Before the bell</option>` : "");
   sel.value = cur || "all";
   $("rules").textContent = S.rules || "";
-  renderAlerts(); renderCards(); renderHistory(); renderTables(); renderRoster(); renderBlind();
+  renderAlerts(); renderCards(); renderHistory(); renderTables(); renderRoster(); renderBlind(); renderNotify();
 }
 async function load(force) {
   try { S = await api("/api/state" + (force ? "?force=1" : "")); render(); }
@@ -477,6 +504,7 @@ document.addEventListener("click", e => {
     run(b, "/api/account", { action: b.dataset.act, number: b.dataset.n }, b.dataset.act === "disable" ? "Benched" : "Back from the bench");
   } else if (b.id === "refresh") { b.disabled = true; load(true).finally(() => b.disabled = false); }
   else if (b.id === "crt") { document.body.classList.toggle("crt"); try { localStorage.setItem("tagteam-crt", document.body.classList.contains("crt") ? "1" : "0"); } catch {} }
+  else if (b.dataset.notify) { const k = b.dataset.notify, on = !(S.notify || {})[k]; run(b, "/api/notify", { key: k, value: on }, `${NOTIFY[k]} ${on ? "on" : "off"}`); }
   else if (b.id === "autoToggle") run(b, "/api/auto", { action: "toggle", enabled: !S.auto.enabled }, S.auto.enabled ? "Blind tag off" : "Blind tag on");
   else if (b.id === "autoPreview") run(b, "/api/auto", { action: "preview" });
   else if (b.id === "svc") run(b, "/api/auto", { action: S.auto.serviceInstalled ? "service-uninstall" : "service-install" });

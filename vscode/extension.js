@@ -175,6 +175,12 @@ function argsFor(p, b) {
   if (p.startsWith('/api/state')) return [['state']]
   if (p === '/api/switch') return [b.target ? ['tag-in', String(b.target), '--json'] : ['tag-out', '--json']]
   if (p === '/api/config') return [['tag-out-point', String(b.threshold), '--json']]
+  if (p === '/api/notify') {
+    const flag = { enabled: null, island: '--island', sound: '--sound' }[b.key]
+    if (flag === undefined) throw new Error(`unknown notification setting ${b.key}`)
+    const v = b.value ? 'on' : 'off'
+    return [['notifications', ...(flag ? [flag, v] : [v]), '--json']]
+  }
   if (p === '/api/account') {
     const n = String(b.number ?? '')
     switch (b.action) {

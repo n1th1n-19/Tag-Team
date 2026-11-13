@@ -37,6 +37,19 @@ Built on [claude-swap](https://github.com/realiti4/claude-swap) (`cswap`). Works
   - *Claude Code terminal*: a **REACH FOR THE TAG!** bar above the prompt with a TAG ME button.
   - *Claude Code chat in editors*: `/tag-team` replies with the roster and the `/tag-out` hint. Editor chat panels can't show plugin buttons, so the button lives in the extension's status bar.
 - **Blind tag**: switches partners for you using claude-swap's own engine (cooldowns, hysteresis, no bouncing back). By default it picks the partner with the most stamina left; you can choose the one whose weekly limit resets soonest instead. Off unless you turn it on.
+- **Desktop notifications**: when Claude needs you, the **ring-side island** springs open at the top of your screen. It's a black pill that grows into a card with the mascot, a ring call and a draining life bar, driven by real spring physics. Hover holds it; a click sends it away. A ring bell strikes with it: one ding for news, two when Claude needs you, three when the match is over. Each kind has its own call:
+
+  | | Ring call | When |
+  |---|---|---|
+  | 🔐 | Referee's call! | an approval dialog actually opens (in auto mode it stays quiet while the classifier decides) |
+  | 🎤 | Mic check! | Claude asks you a question |
+  | 📋 | Match card ready | a plan is waiting for your OK |
+  | 🏆 | And the winner is… | a long turn finished |
+  | 💥 | Down for the count | the turn stopped on an error |
+  | 🔔 | Ringside update | Claude's own news (it calls `mcp__tag-team__notify`) |
+  | 🤼 | TAG ME! | the partner in the ring is worn down |
+
+  With no display, or no Tk, you get the OS notification with the mascot icon instead. Three switches on the ring's **Notify** tab (in the editor extension and `tagteam ring`) turn it to your taste: **Notifications** on or off, **Island** (off: your system's own notification), **Ring bell**. Same from the terminal: `tagteam notifications on|off --island on|off --sound on|off`.
 - **Roster**: sign the current login, bring in a new partner via `/login`, sign by contract (a `claude setup-token` token or API key, passed on stdin), ring names, bench, release.
 - **Status line** for Claude Code: `[IN] work · ▮▮▮▯▯ stamina 41% · endurance 79% · tonight 236M`.
 - **Export** of the match history as CSV or JSON.
@@ -140,6 +153,8 @@ tagteam export --csv -o history.csv
 tagteam update                   # install the newest release (--check to just look)
 tagteam auto-update on           # check once a week and install new releases
 tagteam update --notify on       # show a notice when a new release is out (checks once a day)
+tagteam notify "Deploy done" --kind done   # ring-side island + ring bell (--style toast for the OS notification)
+tagteam notifications off --sound off      # Notify switches: on|off, --island on|off, --sound on|off
 tagteam cleanup                  # remove old plugin copies and leftover downloads
 tagteam statusline               # for Claude Code's statusLine setting
 ```

@@ -92,8 +92,9 @@ describe('tag-team ring', () => {
 })
 
 describe('notify me', () => {
-  // Desktop notifications go out as `tagteam notify MESSAGE --title T`.
+  // Desktop notifications go out as `tagteam notify MESSAGE --kind K [--title T]`.
   const sent = () => ran.filter(a => a[1] === 'notify').map(a => a[2])
+  const kinds = () => ran.filter(a => a[1] === 'notify').map(a => a[a.indexOf('--kind') + 1])
   const asking = (on: any) => {
     const clock = fakeTagteam(on)
     on('tool.check', () => ({ decision: 'ask' }))
@@ -105,24 +106,74 @@ describe('notify me', () => {
     const clock = asking(on)
     await $.tool.call({ tool: 'AskUserQuestion', questions: [] }).catch(() => {})
     await clock.settle() // the ping runs on a timer, after the permission check returns
-    expect(sent()).toContain('Claude has a question for you')
+    expect(sent()).toContain('Claude has a question for you in the ring.')
+    expect(kinds()).toEqual(['question'])
+  })
+
+  test('an approval pings exactly once, from the dialog', async ($: any, on: any) => {
+    ran.length = 0
+    const clock = asking(on)
+    on('classic.PermissionRequest', () => ({ value: {} }))
+    await $.tool.call({ tool: 'Bash', command: 'ls' }).catch(() => {})
+    await clock.settle()
+    expect(sent()).toEqual(['Claude wants to use Bash. Approve or deny in the session.'])
+    expect(kinds()).toEqual(['approval'])
+  })
+
+  for (const mode of ['default', 'acceptEdits', 'plan', 'auto']) {
+    test(`pings when the approval dialog really opens (${mode})`, async ($: any, on: any) => {
+      ran.length = 0
+      const clock = fakeTagteam(on)
+      on('classic.PermissionRequest', () => ({ value: {} })) // the dialog itself, beneath the plugin
+      await $.classic.PermissionRequest({ tool_name: 'Bash', tool_input: { command: 'ls' }, permission_mode: mode })
+      await clock.settle()
+      expect(sent()).toEqual(['Claude wants to use Bash. Approve or deny in the session.'])
+      expect(kinds()).toEqual(['approval'])
+    })
+  }
+
+  test("a subagent's dialog doesn't ping twice for the same session", async ($: any, on: any) => {
+    ran.length = 0
+    const clock = fakeTagteam(on)
+    on('classic.PermissionRequest', () => ({ value: {} }))
+    await $.classic.PermissionRequest({ tool_name: 'Bash', tool_input: {}, permission_mode: 'default', agent_id: 'a1' })
+    await clock.settle()
+    expect(sent()).toEqual([])
   })
 
   test('Claude can send its own notification', async ($: any, on: any) => {
     ran.length = 0
     fakeTagteam(on)
-    const r = await $.tool.call({ tool: 'mcp__tag-team__notify', message: 'Tests failed on main' })
+    const r = await $.tool.call({ tool: 'mcp__tag-team__notify', message: 'Tests failed on main', kind: 'error' })
     expect(sent()).toContain('Tests failed on main')
+    expect(kinds()).toEqual(['error'])
     expect(r.text).toBe('Notification sent.')
   })
 
   test('falls back to Claude Code\'s notification when the CLI cannot notify', async ($: any, on: any) => {
     const via: string[] = []
+    const titles: string[] = []
     fakeTagteam(on, true)
-    on('ui.notify', ($: any, e: any) => { via.push(e.text); return { value: { isSent: true, channel: 'terminal' } } })
+    on('ui.notify', ($: any, e: any) => { via.push(e.text); titles.push(e.title); return { value: { isSent: true, channel: 'terminal' } } })
     const r = await $.tool.call({ tool: 'mcp__tag-team__notify', message: 'Deploy done' })
     expect(via).toEqual(['Deploy done'])
+    expect(titles).toEqual(['🔔 Ringside update'])
     expect(r.text).toBe('Notification sent.')
+  })
+
+  test('switched off in the Notify tab: no fallback, and Claude is told', async ($: any, on: any) => {
+    const via: string[] = []
+    const clock = mock.clock(on)
+    mock.env(on, { PATH: '/opt/tt/bin:/usr/bin', HOME: '/home/u' })
+    on('fs.exists', ($: any, e: any) => ({ value: e.path === '/opt/tt/bin/tagteam' }))
+    on('process.run', ($: any, e: any) => ({ value: { exitCode: e.argv[1] === 'notify' ? 1 : 0, stderr: '', isStdoutTruncated: false, isStderrTruncated: false,
+      stdout: e.argv[1] === 'notify' ? '{"ok": false, "off": true, "error": "notifications are off (tagteam notifications on)"}' : JSON.stringify(SNAP) } }))
+    on('ui.notify', ($: any, e: any) => { via.push(e.text); return { value: { isSent: true, channel: 'terminal' } } })
+    const r = await $.tool.call({ tool: 'mcp__tag-team__notify', message: 'Deploy done' })
+    await clock.settle()
+    expect(via).toEqual([])
+    expect(r.isError).toBe(true)
+    expect(r.text).toMatch(/Notifications are off/)
   })
 
   test('tells Claude when neither path can notify', async ($: any, on: any) => {

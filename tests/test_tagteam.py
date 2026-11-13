@@ -439,6 +439,129 @@ def test_desktop_notify_passes_text_as_args_never_a_shell():
             assert cli.desktop_notify("T", "m") == want, out
 
 
+def test_notify_kinds_give_ring_headings_without_doubling_the_emoji():
+    from tagteam.popup import KINDS, title_for
+    assert title_for("approval") == "🔐 Referee's call!"
+    assert title_for("done", "Deploy finished") == "🏆 Deploy finished"
+    assert title_for("error", "❌ CI red") == "❌ CI red"  # the caller's own emoji wins
+    assert title_for("nonsense") == "🔔 Ringside update"
+    assert set(KINDS) == {"approval", "question", "plan", "done", "error", "claude", "tagme"}
+
+
+def test_island_springs_overshoot_open_and_close_without_bounce():
+    from tagteam.popup import DT, Spring
+    w = Spring(140, 260, 20)  # the island's width spring, opening
+    w.to(380)
+    peak, t = 0.0, 0.0
+    while not w.settled:
+        peak, t = max(peak, w.step()), t + DT
+        assert t < 1.0, "the open spring must settle within a second"
+    assert 385 < peak < 420, peak  # a visible, bounded overshoot
+    close = Spring(380, 400, 40)  # critically damped: back to the pill, no bounce
+    close.to(140)
+    for _ in range(240):
+        assert close.step() >= 140 - 0.5
+    flying = Spring(0, 260, 20)  # retargeting mid-flight keeps the momentum
+    flying.to(380)
+    for _ in range(10):
+        flying.step()
+    v = flying.velocity
+    flying.to(140, 400, 40)
+    assert flying.velocity == v and v > 0
+
+
+def test_notify_tries_the_island_first_then_the_toast():
+    import io
+    import shutil
+    import subprocess
+    from unittest import mock
+
+    class FakeProc:
+        def __init__(self, out):
+            self.stdout = io.BytesIO(out)
+
+        def kill(self):
+            pass
+
+    spawned, toasts = [], []
+
+    def popen(argv, **kw):
+        spawned.append(argv)
+        return FakeProc(popen.out)
+
+    def run(argv, **kw):
+        toasts.append(argv)
+        return subprocess.CompletedProcess(argv, 0)
+
+    with tempfile.TemporaryDirectory() as d:
+        os.environ["TAGTEAM_HOME"] = d
+        with mock.patch.object(sys, "platform", "linux"), mock.patch.object(subprocess, "Popen", popen), \
+                mock.patch.object(subprocess, "run", run), mock.patch.object(shutil, "which", lambda b: b == "notify-send"):
+            popen.out = b"ok\n"
+            assert cli.desktop_notify("", "Bash?", kind="approval", style="popup") == "popup"
+            assert spawned[-1][1:] == ["-m", "tagteam.popup", "approval", "", "Bash?"] and not toasts
+            popen.out = b""  # no Tk or no display: the island never says ok
+            assert cli.desktop_notify("", "Bash?", kind="approval", style="popup") == "notify-send"
+            assert "🔐 Referee's call!" in toasts[-1] and any(a.startswith("--icon=") for a in toasts[-1])
+            n = len(spawned)
+            assert cli.desktop_notify("", "m", style="toast") == "notify-send" and len(spawned) == n
+
+
+def test_ring_bell_is_a_real_wav_with_more_dings_for_bigger_news():
+    import io
+    import wave
+    from tagteam import bell
+    one, three = (wave.open(io.BytesIO(bell.wav(n))) for n in (1, 3))
+    assert one.getframerate() == bell.RATE and one.getnchannels() == 1
+    assert three.getnframes() > one.getnframes()  # the strikes follow each other
+    assert bell.DINGS["done"] == 3 and bell.DINGS["error"] == 1
+
+
+def test_notification_toggles_reach_the_cli_and_the_ring():
+    import contextlib
+    import io
+    from unittest import mock
+    from tagteam import bell, server
+    with tempfile.TemporaryDirectory() as d:
+        os.environ["TAGTEAM_HOME"] = d
+        assert store.config()["notify"] == {"enabled": True, "island": True, "sound": True}
+        assert server.act("/api/notify", {"key": "sound", "value": False})["sound"] is False
+        assert store.config()["notify"] == {"enabled": True, "island": True, "sound": False}  # the others kept
+        try:
+            server.act("/api/notify", {"key": "volume", "value": True})
+            raise AssertionError("an unknown setting must be refused")
+        except accounts.CswapError:
+            pass
+        with contextlib.redirect_stdout(io.StringIO()):
+            cli.main(["notifications", "--island", "off", "--json"])
+        assert store.config()["notify"]["island"] is False
+        rung, styles = [], []
+        with mock.patch.object(bell, "ring", rung.append), \
+                mock.patch.object(cli, "desktop_notify", lambda *a, **k: styles.append(k["style"]) or "gdbus"), \
+                contextlib.redirect_stdout(io.StringIO()):
+            assert cli.main(["notify", "hi", "--kind", "done", "--json"]) == 0
+            assert styles == ["toast"] and rung == []  # island off: the OS toast; bell off: silent
+            cli.main(["notifications", "--sound", "on", "--json"])
+            cli.main(["notify", "hi", "--kind", "done", "--json"])
+            assert rung == ["done"]
+            cli.main(["notifications", "off", "--json"])
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                assert cli.main(["notify", "hi", "--json"]) == 1
+            assert "notifications are off" in out.getvalue() and len(styles) == 2
+
+
+def test_a_newer_island_takes_the_stage_without_signals():
+    from tagteam import popup
+    with tempfile.TemporaryDirectory() as d:
+        os.environ["TAGTEAM_HOME"] = d
+        first = popup._claim_stage()
+        assert popup._read_stage() == first
+        second = popup._claim_stage()
+        assert second != first and popup._read_stage() == second  # the first island sees this and bows out
+        assert not hasattr(popup, "_replace_previous")  # no kill-by-pid path left
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

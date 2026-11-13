@@ -14,6 +14,7 @@ DEFAULT_CONFIG = {
     "threshold": 90,          # the tag-out point: % of 5h/7d stamina that raises TAG ME
     "auto": {"enabled": False, "mode": "session"},   # mode: session | always
     "pricing": {},            # model-prefix -> [input $/M, output $/M, cache-read multiplier]
+    "notify": {"enabled": True, "island": True, "sound": True},  # pings: on at all, island (else OS toast), ring bell
     "updateCheck": False,     # opt-in: ask GitHub once a day whether a new release is out (tagteam update --notify on)
 }
 
@@ -96,14 +97,15 @@ def config() -> dict:
     data = read_json(home() / "config.json", {})
     merged = {**DEFAULT_CONFIG, **data}
     merged["auto"] = {**DEFAULT_CONFIG["auto"], **data.get("auto", {})}
+    merged["notify"] = {**DEFAULT_CONFIG["notify"], **data.get("notify", {})}
     return merged
 
 
 def set_config(**changes) -> dict:
     cfg = config()
     for key, value in changes.items():
-        if key == "auto":
-            cfg["auto"].update(value)
+        if key in ("auto", "notify"):
+            cfg[key].update(value)
         else:
             cfg[key] = value
     write_json(home() / "config.json", cfg)
