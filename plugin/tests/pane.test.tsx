@@ -116,7 +116,7 @@ describe('notify me', () => {
     on('classic.PermissionRequest', () => ({ value: {} }))
     await $.tool.call({ tool: 'Bash', command: 'ls' }).catch(() => {})
     await clock.settle()
-    expect(sent()).toEqual(['Claude wants to use Bash. Approve or deny in the session.'])
+    expect(sent()).toEqual(['Wants to run: ls'])
     expect(kinds()).toEqual(['approval'])
   })
 
@@ -127,10 +127,45 @@ describe('notify me', () => {
       on('classic.PermissionRequest', () => ({ value: {} })) // the dialog itself, beneath the plugin
       await $.classic.PermissionRequest({ tool_name: 'Bash', tool_input: { command: 'ls' }, permission_mode: mode })
       await clock.settle()
-      expect(sent()).toEqual(['Claude wants to use Bash. Approve or deny in the session.'])
+      expect(sent()).toEqual(['Wants to run: ls'])
       expect(kinds()).toEqual(['approval'])
     })
   }
+
+  test('names the session and says what the call is for', async ($: any, on: any) => {
+    ran.length = 0
+    const clock = fakeTagteam(on)
+    on('classic.UserPromptSubmit', () => ({ value: {} }))
+    on('classic.PermissionRequest', () => ({ value: {} }))
+    await $.classic.UserPromptSubmit({ prompt: 'ship it', session_title: 'Suit Roll tablet fixes' })
+    await $.classic.PermissionRequest({ tool_name: 'Bash', permission_mode: 'default',
+      tool_input: { command: 'git push origin dev | tee push.log' } })
+    await $.classic.PermissionRequest({ tool_name: 'Edit', permission_mode: 'default',
+      tool_input: { file_path: '/home/u/app/components/Lobby.tsx' } })
+    await clock.settle()
+    const calls = ran.filter(a => a[1] === 'notify')
+    expect(calls.map(a => a[2])).toEqual(['Wants to run: git push origin dev | tee push.log', 'Wants to edit components/Lobby.tsx'])
+    expect(calls.every(a => a[a.indexOf('--session') + 1] === 'Suit Roll tablet fixes')).toBe(true)
+  })
+
+  test('a question ping carries the question itself', async ($: any, on: any) => {
+    ran.length = 0
+    const clock = asking(on)
+    await $.tool.call({ tool: 'AskUserQuestion', questions: [{ question: 'Merge PR #25 now?', header: 'Merge', options: [], multiSelect: false }] }).catch(() => {})
+    await clock.settle()
+    expect(sent()).toEqual(['Merge PR #25 now?'])
+  })
+
+  test('a done ping carries the start of the answer, as plain text', async ($: any, on: any) => {
+    ran.length = 0
+    const clock = fakeTagteam(on)
+    on('turn.complete', () => ({ text: '' }))
+    await $.turn.complete({ answer: '## Shipped\n**PR #25** is green on `master`; merge it.\n\n```sh\ngh pr merge 25\n```', durationMs: 60000,
+      isAborted: false, turnId: 't1', reason: 'answer' })
+    await clock.settle()
+    expect(sent()).toEqual(['Shipped PR #25 is green on master; merge it.'])
+    expect(kinds()).toEqual(['done'])
+  })
 
   test("a subagent's dialog doesn't ping twice for the same session", async ($: any, on: any) => {
     ran.length = 0

@@ -1,6 +1,6 @@
 """The ring-side island: a pill at the top of the screen that springs open with a notification.
 
-Run as `python -m tagteam.popup KIND TITLE MESSAGE`. Prints "ok" once the window is up, so the
+Run as `python -m tagteam.popup KIND TITLE MESSAGE [SESSION]`. Prints "ok" once the window is up, so the
 caller knows to skip the OS toast. Stdlib only (tkinter); the motion is real spring physics.
 """
 
@@ -95,7 +95,7 @@ def _claim_stage() -> str:
 
 
 class Island:
-    def __init__(self, kind: str, title: str, message: str):
+    def __init__(self, kind: str, title: str, message: str, session: str = ""):
         import tkinter as tk
         from tkinter import font as tkfont
 
@@ -107,7 +107,7 @@ class Island:
         # Tk 8.6 can't draw (or crashes on) characters outside the BMP; X11 Tk draws color emoji as blanks.
         if tk.TkVersion < 8.7 or sys.platform.startswith("linux"):
             title = "".join(ch for ch in title if ord(ch) <= 0xFFFF).strip()
-        self.title, self.message = title, message
+        self.title, self.message, self.session = title, message, session.strip()[:60]
         root = self.root = tk.Tk()
         root.withdraw()
         root.overrideredirect(True)
@@ -135,10 +135,13 @@ class Island:
             self.title_font.configure(size=12, weight="bold")
         self.body_font = tkfont.nametofont("TkDefaultFont", root).copy()
         self.body_font.configure(size=11)
+        self.session_font = tkfont.nametofont("TkDefaultFont", root).copy()
+        self.session_font.configure(size=9, weight="bold")
         # Grow the island to fit the message: up to 3 lines beside the mascot.
         self.text_x = 14 + 64 + 12
         lines = min(3, max(1, -(-self.body_font.measure(message) // (OPEN[0] - self.text_x - 16))))
-        self.open_h = max(OPEN[1], 44 + lines * self.body_font.metrics("linespace") + 18)
+        self.top = 30 if self.session else 14  # the session line sits above the call
+        self.open_h = max(OPEN[1], self.top + 30 + lines * self.body_font.metrics("linespace") + 18)
         self.icon_small = tk.PhotoImage(data=base64.b64encode(art.png("mascot/icon", 1)))
         self.icon_big = tk.PhotoImage(data=base64.b64encode(art.png("mascot/icon", 2)))
 
@@ -236,8 +239,11 @@ class Island:
             return
         c.create_image(14, h / 2, image=self.icon_big, anchor="w")
         x = self.text_x
-        c.create_text(x, 14, text=self.title, anchor="nw", fill=_mix(BLACK, INK, a), font=self.title_font)
-        c.create_text(x, 40, text=self.message, anchor="nw", fill=_mix(BLACK, MUTED, a), font=self.body_font,
+        if self.session:
+            c.create_text(x, 12, text=self.session.upper(), anchor="nw", fill=_mix(BLACK, self.accent, a),
+                          font=self.session_font, width=max(10, w - x - 16))
+        c.create_text(x, self.top, text=self.title, anchor="nw", fill=_mix(BLACK, INK, a), font=self.title_font)
+        c.create_text(x, self.top + 26, text=self.message, anchor="nw", fill=_mix(BLACK, MUTED, a), font=self.body_font,
                       width=max(10, w - x - 16))
         bar = (w - x - 24) * max(0.0, self.left / HOLD)
         if bar > 1:
@@ -250,8 +256,8 @@ class Island:
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 3:
-        print("usage: python -m tagteam.popup KIND TITLE MESSAGE", file=sys.stderr)
+    if len(argv) not in (3, 4):
+        print("usage: python -m tagteam.popup KIND TITLE MESSAGE [SESSION]", file=sys.stderr)
         return 2
     try:
         island = Island(*argv)

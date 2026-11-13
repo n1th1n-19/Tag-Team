@@ -37,7 +37,7 @@ Built on [claude-swap](https://github.com/realiti4/claude-swap) (`cswap`). Works
   - *Claude Code terminal*: a **REACH FOR THE TAG!** bar above the prompt with a TAG ME button.
   - *Claude Code chat in editors*: `/tag-team` replies with the roster and the `/tag-out` hint. Editor chat panels can't show plugin buttons, so the button lives in the extension's status bar.
 - **Blind tag**: switches partners for you using claude-swap's own engine (cooldowns, hysteresis, no bouncing back). By default it picks the partner with the most stamina left; you can choose the one whose weekly limit resets soonest instead. Off unless you turn it on.
-- **Desktop notifications**: when Claude needs you, the **ring-side island** springs open at the top of your screen. It's a black pill that grows into a card with the mascot, a ring call and a draining life bar, driven by real spring physics. Hover holds it; a click sends it away. A ring bell strikes with it: one ding for news, two when Claude needs you, three when the match is over. Each kind has its own call:
+- **Desktop notifications**: when Claude needs you, the **ring-side island** springs open at the top of your screen. It's a black pill that grows into a card with the mascot, a ring call and a draining life bar, driven by real spring physics. Hover holds it; a click sends it away. Each ping names its session (Claude Code's title for it, else the project folder) and says what it's about: the command or file an approval is for, the question asked, or the first line of Claude's answer. A ring bell strikes with it: one ding for news, two when Claude needs you, three when the match is over. Each kind has its own call:
 
   | | Ring call | When |
   |---|---|---|
