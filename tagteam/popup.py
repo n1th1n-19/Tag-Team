@@ -60,6 +60,32 @@ class Spring:
         return abs(self.value - self.target) < self.eps and abs(self.velocity) < self.eps * 10
 
 
+def fit(text: str, measure, width: float, max_lines: int, ell: str = "…") -> list[str]:
+    """Word-wrap `text` to `width` (by `measure`, the font's own pixel width), at most `max_lines`;
+    the last line ends in "…" when text is left over. Words wider than a line are broken by character."""
+    words, lines, line = " ".join(str(text).split()).split(" "), [], ""
+    for word in words:
+        while word:
+            trial = f"{line} {word}" if line else word
+            if measure(trial) <= width:
+                line, word = trial, ""
+            elif line:
+                lines.append(line)
+                line = ""
+            else:  # one word wider than the line: take what fits
+                n = max(1, max(i for i in range(1, len(word) + 1) if measure(word[:i]) <= width or i == 1))
+                lines.append(word[:n])
+                word = word[n:]
+    if line:
+        lines.append(line)
+    if len(lines) <= max_lines:
+        return lines or [""]
+    last = lines[max_lines - 1]
+    while last and measure(last + ell) > width:
+        last = last[:-1]
+    return lines[:max_lines - 1] + [last.rstrip() + ell]
+
+
 def _mix(a: str, b: str, t: float) -> str:
     """Color from a to b; canvas text has no alpha, so opacity is a blend toward the black pill."""
     t = max(0.0, min(1.0, t))
@@ -107,7 +133,9 @@ class Island:
         # Tk 8.6 can't draw (or crashes on) characters outside the BMP; X11 Tk draws color emoji as blanks.
         if tk.TkVersion < 8.7 or sys.platform.startswith("linux"):
             title = "".join(ch for ch in title if ord(ch) <= 0xFFFF).strip()
-        self.title, self.message, self.session = title, message, session.strip()[:60]
+        # Tk on X11 draws "…" as junk ("®f") in every font tried, so the island spells it "...".
+        dots = lambda s: s.replace("\u2026", "...")
+        self.title, self.message, self.session = dots(title), dots(message), dots(session.strip())
         root = self.root = tk.Tk()
         root.withdraw()
         root.overrideredirect(True)
@@ -139,9 +167,14 @@ class Island:
         self.session_font.configure(size=9, weight="bold")
         # Grow the island to fit the message: up to 3 lines beside the mascot.
         self.text_x = 14 + 64 + 12
-        lines = min(3, max(1, -(-self.body_font.measure(message) // (OPEN[0] - self.text_x - 16))))
+        # Wrap with the fonts' real widths: one line of session, one of title, up to three of body.
+        room = OPEN[0] - self.text_x - 16
+        self.session = fit(self.session.upper(), self.session_font.measure, room, 1, "...")[0] if self.session else ""
+        self.title = fit(self.title, self.title_font.measure, room, 1, "...")[0]
+        body = fit(self.message, self.body_font.measure, room, 3, "...")
+        self.message = "\n".join(body)
         self.top = 30 if self.session else 14  # the session line sits above the call
-        self.open_h = max(OPEN[1], self.top + 30 + lines * self.body_font.metrics("linespace") + 18)
+        self.open_h = max(OPEN[1], self.top + 26 + len(body) * self.body_font.metrics("linespace") + 22)
         self.icon_small = tk.PhotoImage(data=base64.b64encode(art.png("mascot/icon", 1)))
         self.icon_big = tk.PhotoImage(data=base64.b64encode(art.png("mascot/icon", 2)))
 
@@ -240,11 +273,9 @@ class Island:
         c.create_image(14, h / 2, image=self.icon_big, anchor="w")
         x = self.text_x
         if self.session:
-            c.create_text(x, 12, text=self.session.upper(), anchor="nw", fill=_mix(BLACK, self.accent, a),
-                          font=self.session_font, width=max(10, w - x - 16))
+            c.create_text(x, 12, text=self.session, anchor="nw", fill=_mix(BLACK, self.accent, a), font=self.session_font)
         c.create_text(x, self.top, text=self.title, anchor="nw", fill=_mix(BLACK, INK, a), font=self.title_font)
-        c.create_text(x, self.top + 26, text=self.message, anchor="nw", fill=_mix(BLACK, MUTED, a), font=self.body_font,
-                      width=max(10, w - x - 16))
+        c.create_text(x, self.top + 26, text=self.message, anchor="nw", fill=_mix(BLACK, MUTED, a), font=self.body_font)
         bar = (w - x - 24) * max(0.0, self.left / HOLD)
         if bar > 1:
             c.create_rectangle(x, h - 12, x + bar, h - 9, fill=_mix(BLACK, self.accent, a), outline="")
