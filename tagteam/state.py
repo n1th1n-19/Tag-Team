@@ -177,6 +177,7 @@ def build() -> dict:
         "setup": setup,
         "rules": RULES,
         "mascot": {"palette": art.mascot()["palette"], "icon": art.mascot()["frames"]["mascot/icon"]},
+        "notify": cfg["notify"],
         "auto": {**cfg["auto"], "serviceInstalled": accounts.service_installed(),
                  "settings": auto_settings, "recent": store.tail_events("auto", 15)},
     }

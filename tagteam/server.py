@@ -75,6 +75,11 @@ def act(path: str, body: dict) -> dict:
             return accounts.service_install()
         if a == "service-uninstall":
             return accounts.service_uninstall()
+    if path == "/api/notify":
+        key = body.get("key")
+        if key not in ("enabled", "island", "sound"):
+            raise accounts.CswapError(f"unknown notification setting {key}")
+        return {"ok": True, **store.set_config(notify={key: bool(body.get("value"))})["notify"]}
     if path == "/api/config":
         return {"ok": True, **store.set_config(threshold=float(body["threshold"]))}
     raise accounts.CswapError(f"unknown action {path}")

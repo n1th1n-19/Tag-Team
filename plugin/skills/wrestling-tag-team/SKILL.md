@@ -27,4 +27,10 @@ Token totals count input + output + cache writes + cache reads. The purse is an 
 - `tagteam blind-tag on|off|status|preview`; `tagteam corner-man install` keeps it going with Claude Code closed.
 - `tagteam blind-tag set threshold 85`, `set strategy consume-first`, `set cooldownSeconds 600`.
 - `tagteam tag-out-point 85` sets when TAG ME appears.
+
+## Notify
+- `mcp__tag-team__notify` (or `tagteam notify "msg" --kind K`) puts the ring-side island on the user's screen: a pill that springs open at the top. Pass `kind` so the emoji and color fit: `question` (need input), `done` (finished), `error` (failed), `claude` (anything else). One short sentence; not for routine progress.
+- The user's switches (ring's Notify tab, or `tagteam notifications on|off --island on|off --sound on|off`) win: if a notify says notifications are off, tell them in the chat instead. Don't switch their settings unless they ask.
+
+## Updates
 - `tagteam update` installs the newest release (`--check` only looks); `tagteam auto-update on|off|status` checks weekly. Ask before turning auto-update on.

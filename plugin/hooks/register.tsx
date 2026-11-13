@@ -190,7 +190,7 @@ function afterRefresh($: any, s: Snapshot) {
   if (near && key !== alerted) {
     const hint = near.suggest ? ` ${near.suggest.label} is fresh (${Math.round(near.suggest.pct)}%). /tag-out to tag them in.` : ''
     $.ui.toast(`${near.ko ? 'DOWN FOR THE COUNT' : 'REACH FOR THE TAG'}: ${near.message}.${hint}`)
-    pingLater($, `${near.message}.${hint}`, 'Tag Team: TAG ME!')
+    pingLater($, `${near.message}.${hint}`, 'tagme')
   }
   alerted = key
   if (s.auto.enabled && !s.auto.serviceInstalled) void autoTick($)
@@ -495,22 +495,42 @@ async function dashboard($: any, e: any) {
 }
 
 let NOTIFY = true
-const QUESTION: Record<string, string> = { AskUserQuestion: 'Claude has a question for you', ExitPlanMode: 'Claude has a plan for you to approve' }
+/** Tools that always need the person, in every mode: their ping goes out on the check. */
+const QUESTION: Record<string, [string, Kind]> = {
+  AskUserQuestion: ['Claude has a question for you in the ring.', 'question'],
+  ExitPlanMode: ["Claude's game plan is waiting for your OK.", 'plan'],
+}
+
+/** What a ping is about. `tagteam notify --kind` owns the emoji, color and ring-voice heading. */
+type Kind = 'approval' | 'question' | 'plan' | 'done' | 'error' | 'claude' | 'tagme'
+const KINDS: Kind[] = ['approval', 'question', 'plan', 'done', 'error', 'claude', 'tagme']
+// Only for the fallback path, when the CLI can't notify; keep in step with tagteam/popup.py KINDS.
+const HEADING: Record<Kind, string> = {
+  approval: "🔐 Referee's call!", question: '🎤 Mic check!', plan: '📋 Match card ready', done: '🏆 And the winner is…',
+  error: '💥 Down for the count', claude: '🔔 Ringside update', tagme: '🤼 TAG ME!',
+}
 
 /** A real OS notification via `tagteam notify` (notify-send/gdbus, osascript, PowerShell); Claude Code's own channel if that fails. */
-async function desktop($: any, text: string, title: string): Promise<boolean> {
-  try { await tagteam($, ['notify', text, '--title', title, '--json']); return true } catch { /* old CLI or no notifier */ }
-  const r = await $.ui.notify(text, { title }).catch(() => ({ isSent: false }))
+async function desktop($: any, text: string, kind: Kind, title = ''): Promise<boolean | 'off'> {
+  try {
+    await tagteam($, ['notify', text, '--kind', kind, ...(title ? ['--title', title] : []), '--json'])
+    return true
+  } catch (err) {
+    // Switched off in the ring's Notify tab: that's the person's call, so no fallback either.
+    if (/notifications are off/.test((err as Error).message)) return 'off'
+    /* old CLI or no notifier: Claude Code's own channel */
+  }
+  const r = await $.ui.notify(text, { title: title || HEADING[kind] }).catch(() => ({ isSent: false }))
   return r.isSent
 }
 
-async function ping($: any, text: string, title: string) {
-  if (NOTIFY) await desktop($, text, title)
+async function ping($: any, text: string, kind: Kind) {
+  if (NOTIFY) await desktop($, text, kind)
 }
 
 /** Fire-and-forget ping on a timer: work left unawaited in a hook dies with its dispatch, a timer doesn't. */
-function pingLater($: any, text: string, title: string) {
-  $.clock.after(0, () => { void ping($, text, title) })
+function pingLater($: any, text: string, kind: Kind) {
+  $.clock.after(0, () => { void ping($, text, kind) })
 }
 
 /** Serves mcp__tag-team__notify: a notification Claude decides to send. */
@@ -519,15 +539,18 @@ async function claudeNotify($: any, e: any) {
   if (!NOTIFY) return say('Notifications are off (Tag Team "Notify me" setting). Tell the user in the chat instead.', true)
   const message = String(e.message ?? '').trim()
   if (!message) return say('message is required.', true)
-  return (await desktop($, message, String(e.title || 'Tag Team: Claude')))
-    ? say('Notification sent.') : say('Not sent: no desktop notifier worked. Tell the user in the chat instead.', true)
+  const kind: Kind = KINDS.includes(e.kind) ? e.kind : 'claude'
+  const r = await desktop($, message, kind, String(e.title || ''))
+  if (r === 'off') return say('Notifications are off (Tag Team ring, Notify tab). Tell the user in the chat instead.', true)
+  return r ? say('Notification sent.') : say('Not sent: no desktop notifier worked. Tell the user in the chat instead.', true)
 }
 
 function pingDone($: any, e: any) {
   // ponytail: 20s turn = "they probably walked away"; no window-focus signal to read.
   if (e.agentId !== undefined || e.reason === 'aborted' || e.durationMs < 20000) return
   // Generic text: the answer itself stays out of the OS notification center.
-  pingLater($, e.reason === 'answer' ? 'Claude finished. Your turn.' : 'The turn stopped on an error.', 'Tag Team: Claude is done')
+  if (e.reason === 'answer') pingLater($, "Claude's done. Your turn in the ring.", 'done')
+  else pingLater($, 'The turn stopped on an error.', 'error')
 }
 
 export const register: Register = (on, options) => {
@@ -541,12 +564,20 @@ export const register: Register = (on, options) => {
   ;(on as any)('tool.call', { tool: 'mcp__tag-team__notify' }, async ($: any, e: any) => claudeNotify($, e))
 
   // Ping the person when Claude needs them, so they can work in another window.
+  // Questions and plans need the person in every mode: ping on the check.
   on('tool.check', async ($, e, next) => {
     const r = await next(e)
+    const q = QUESTION[e.tool]
     // tool_use_id: a real call, not a $.tool.check query; approver host: a program answers, not the person.
-    if (r.decision === 'ask' && e.tool_use_id && (e as { approver?: string }).approver !== 'host')
-      pingLater($, QUESTION[e.tool] ?? `Claude wants to use ${e.tool}. Approve or deny in the session.`, 'Tag Team: your call')
+    if (q && r.decision === 'ask' && e.tool_use_id && (e as { approver?: string }).approver !== 'host') pingLater($, q[0], q[1])
     return r
+  })
+  // Approvals: only once the dialog really opens. An ask on the check may still be settled by the mode
+  // (auto's classifier, bypass, dontAsk) without the person, so pinging there cried wolf.
+  ;(on as any)('classic.PermissionRequest', async ($: any, e: any, next: any) => {
+    if (!QUESTION[e.tool_name] && !e.agent_id)
+      pingLater($, `Claude wants to use ${e.tool_name}. Approve or deny in the session.`, 'approval')
+    return next(e)
   })
 
   on('session.start', async ($, e, next) => {
@@ -563,7 +594,8 @@ export const register: Register = (on, options) => {
           type: 'object', required: ['message'],
           properties: {
             message: { type: 'string', description: 'One short sentence: what happened or what you need.' },
-            title: { type: 'string', description: 'Optional heading, a few words.' },
+            title: { type: 'string', description: "Optional heading, a few words. Defaults to the kind's ring call." },
+            kind: { type: 'string', enum: KINDS, description: 'What it is about, which sets the emoji and color: question (need input), done (finished), error (failed), claude (anything else).' },
           },
         },
       }),

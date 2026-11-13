@@ -31,7 +31,7 @@
     "notifyMe": {
       "type": "boolean",
       "title": "Notify me",
-      "description": "Desktop notification when Claude needs your approval, asks a question, or finishes a long turn",
+      "description": "The ring-side island when an approval dialog actually opens (quiet while auto mode's classifier decides), when Claude asks a question, or finishes a long turn",
       "default": true
     }
   }
