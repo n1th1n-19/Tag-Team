@@ -562,6 +562,19 @@ def test_a_newer_island_takes_the_stage_without_signals():
         assert not hasattr(popup, "_replace_previous")  # no kill-by-pid path left
 
 
+def test_island_text_fits_its_lines():
+    from tagteam.popup import fit
+    m = lambda s: 7 * len(s)  # noqa: E731 - a 7px monospace stand-in for the font
+    body = ("Written for: you, or whoever builds the next phases, me included. The plan is in "
+            "docs/PLAN-v3.md inside the DARKMARK repo. It records Phase 0 as done and lists what comes next.")
+    lines = fit(body, m, 274, 3)
+    assert len(lines) == 3 and lines[-1].endswith("…") and all(m(x) <= 274 for x in lines)
+    assert fit("short", m, 274, 3) == ["short"]
+    long_word = fit("/home/u/" + "x" * 80, m, 140, 2)  # a path with no spaces still breaks
+    assert len(long_word) == 2 and all(m(x) <= 140 for x in long_word)
+    assert fit("IAMGAME-MONO · A VERY LONG SESSION TITLE THAT GOES ON", m, 200, 1)[0].endswith("…")
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):
