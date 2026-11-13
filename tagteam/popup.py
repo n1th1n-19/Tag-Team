@@ -86,7 +86,7 @@ def _read_stage() -> str | None:
 def _claim_stage() -> str:
     # ponytail: the newest island takes over and the older one springs shut; queue/morph if pings pile up.
     # Cooperative on purpose: no signals, so a reused process id can never be hit.
-    token = f"{os.getpid()}-{time.time_ns()}"
+    token = f"{os.getpid()}-{os.urandom(8).hex()}"  # random, not the clock: Windows' clock is too coarse to tell two apart
     try:
         _stage().write_text(token)
     except OSError:
