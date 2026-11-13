@@ -252,6 +252,7 @@ def build_parser() -> argparse.ArgumentParser:
     nt.add_argument("--title", default="", help="heading; defaults to the kind's ring call")
     nt.add_argument("--kind", default="claude", choices=["approval", "question", "plan", "done", "error", "claude", "tagme"],
                     help="what it's about: sets the emoji, color and default heading")
+    nt.add_argument("--session", default="", help="which Claude Code session it's from (shown above the call)")
     nt.add_argument("--style", choices=["popup", "toast"],
                     help="popup: the ring-side island; toast: the OS notification (default: the island setting)")
     ns = cmd("notifications", "turn pings on or off, and pick the island and the ring bell")
@@ -372,7 +373,7 @@ def _dispatch(p, args, as_json: bool) -> int:
         if pref["sound"]:
             from tagteam import bell
             bell.ring(args.kind)
-        how = desktop_notify(args.title, args.message, kind=args.kind,
+        how = desktop_notify(args.title, args.message, kind=args.kind, session=args.session,
                              style=args.style or ("popup" if pref["island"] else "toast"))
         emit({"ok": bool(how), "via": how, **({} if how else {"error": "no desktop notifier found (install notify-send)"})}, as_json)
         return 0 if how else 1
@@ -397,13 +398,13 @@ def _dispatch(p, args, as_json: bool) -> int:
     return 0
 
 
-def _island(kind: str, title: str, message: str) -> bool:
+def _island(kind: str, title: str, message: str, session: str = "") -> bool:
     """The ring-side island (tagteam.popup), detached; True once it says "ok" (window up)."""
     import subprocess
     import threading
     flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
     try:
-        proc = subprocess.Popen([sys.executable, "-m", "tagteam.popup", kind, title, message],
+        proc = subprocess.Popen([sys.executable, "-m", "tagteam.popup", kind, title, message, session],
                                 stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                                 start_new_session=not sys.platform.startswith("win"), creationflags=flags)
     except OSError:
@@ -427,7 +428,7 @@ def _icon() -> str | None:
         return None
 
 
-def desktop_notify(title: str, message: str, kind: str = "claude", style: str = "toast") -> str | None:
+def desktop_notify(title: str, message: str, kind: str = "claude", style: str = "toast", session: str = "") -> str | None:
     """Raise a notification; returns the tool used, or None. Text goes in as argv/env, never into a script.
 
     style "popup" tries the ring-side island first and falls back to the OS toast."""
@@ -435,10 +436,10 @@ def desktop_notify(title: str, message: str, kind: str = "claude", style: str = 
     import subprocess
 
     from tagteam.popup import title_for
-    title, message = title[:200], message[:1000]
-    if style == "popup" and _island(kind, title, message):
+    title, message, session = title[:200], message[:1000], session[:80]
+    if style == "popup" and _island(kind, title, message, session):
         return "popup"
-    title = title_for(kind, title)
+    title = title_for(kind, title) + (f" · {session}" if session else "")
     if sys.platform == "darwin":
         script = ["-e", "on run argv", "-e", "display notification (item 2 of argv) with title (item 1 of argv)", "-e", "end run"]
         tries = [("osascript", ["osascript", *script, title, message], None)]

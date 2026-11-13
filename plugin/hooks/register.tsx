@@ -495,10 +495,46 @@ async function dashboard($: any, e: any) {
 }
 
 let NOTIFY = true
+/** Which session a ping comes from: its title, else its project folder. One plugin instance per session. */
+let SESSION = ''
+function noteSession(e: any) {
+  if (e?.session_title) SESSION = String(e.session_title)
+  else if (!SESSION && e?.cwd) SESSION = String(e.cwd).split(/[\\/]/).filter(Boolean).pop() || ''
+}
+
+/** One line for a notification body, cut at a word. Markdown is flattened unless `raw` (a command keeps its | * _). */
+export function gist(s: unknown, max = 160, raw = false): string {
+  let t = String(s ?? '')
+  if (!raw) {
+    t = t.replace(/```[\s\S]*?```/g, ' ')            // code blocks
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')       // links keep their text
+      .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+\.)\s+/gm, '') // headings, quotes, list markers at line start
+      .replace(/\*\*|__|[`*]/g, '')                  // emphasis and code ticks; #25, snake_case, a | b stay
+  }
+  t = t.replace(/\s+/g, ' ').trim()
+  if (t.length <= max) return t
+  const cut = t.slice(0, max)
+  return `${cut.slice(0, Math.max(cut.lastIndexOf(' '), max * 0.6)).trimEnd()}…`
+}
+
+/** What an approval is for, from the tool's own input: the command, the file, or just the tool. */
+export function wants(tool: string, input: any): string {
+  if (tool === 'Bash' && input?.command) return `Wants to run: ${gist(input.command, 140, true)}`
+  const file = input?.file_path || input?.notebook_path || input?.path
+  if (file) return `Wants to ${tool === 'Read' ? 'read' : 'edit'} ${gist(String(file).split(/[\\/]/).slice(-2).join('/'), 120, true)}`
+  if (input?.url) return `Wants to open ${gist(input.url, 120, true)}`
+  return `Wants to use ${tool}.`
+}
 /** Tools that always need the person, in every mode: their ping goes out on the check. */
 const QUESTION: Record<string, [string, Kind]> = {
   AskUserQuestion: ['Claude has a question for you in the ring.', 'question'],
   ExitPlanMode: ["Claude's game plan is waiting for your OK.", 'plan'],
+}
+/** The question itself, or the plan's first line, when the input carries it. */
+function asked(tool: string, input: any): string {
+  if (tool === 'AskUserQuestion') return gist(input?.questions?.[0]?.question)
+  if (tool === 'ExitPlanMode') return gist(String(input?.plan ?? '').split('\n').find(l => l.trim()) ?? '', 140)
+  return ''
 }
 
 /** What a ping is about. `tagteam notify --kind` owns the emoji, color and ring-voice heading. */
@@ -513,14 +549,16 @@ const HEADING: Record<Kind, string> = {
 /** A real OS notification via `tagteam notify` (notify-send/gdbus, osascript, PowerShell); Claude Code's own channel if that fails. */
 async function desktop($: any, text: string, kind: Kind, title = ''): Promise<boolean | 'off'> {
   try {
-    await tagteam($, ['notify', text, '--kind', kind, ...(title ? ['--title', title] : []), '--json'])
+    await tagteam($, ['notify', text, '--kind', kind, ...(title ? ['--title', title] : []),
+      ...(SESSION ? ['--session', SESSION] : []), '--json'])
     return true
   } catch (err) {
     // Switched off in the ring's Notify tab: that's the person's call, so no fallback either.
     if (/notifications are off/.test((err as Error).message)) return 'off'
     /* old CLI or no notifier: Claude Code's own channel */
   }
-  const r = await $.ui.notify(text, { title: title || HEADING[kind] }).catch(() => ({ isSent: false }))
+  const heading = (title || HEADING[kind]) + (SESSION ? ` · ${SESSION}` : '')
+  const r = await $.ui.notify(text, { title: heading }).catch(() => ({ isSent: false }))
   return r.isSent
 }
 
@@ -548,8 +586,8 @@ async function claudeNotify($: any, e: any) {
 function pingDone($: any, e: any) {
   // ponytail: 20s turn = "they probably walked away"; no window-focus signal to read.
   if (e.agentId !== undefined || e.reason === 'aborted' || e.durationMs < 20000) return
-  // Generic text: the answer itself stays out of the OS notification center.
-  if (e.reason === 'answer') pingLater($, "Claude's done. Your turn in the ring.", 'done')
+  // The start of the answer, so the ping says what got done (the person asked for the content).
+  if (e.reason === 'answer') pingLater($, gist(e.answer) || "Claude's done. Your turn in the ring.", 'done')
   else pingLater($, 'The turn stopped on an error.', 'error')
 }
 
@@ -569,16 +607,20 @@ export const register: Register = (on, options) => {
     const r = await next(e)
     const q = QUESTION[e.tool]
     // tool_use_id: a real call, not a $.tool.check query; approver host: a program answers, not the person.
-    if (q && r.decision === 'ask' && e.tool_use_id && (e as { approver?: string }).approver !== 'host') pingLater($, q[0], q[1])
+    if (q && r.decision === 'ask' && e.tool_use_id && (e as { approver?: string }).approver !== 'host')
+      pingLater($, asked(e.tool, e.input) || q[0], q[1])
     return r
   })
   // Approvals: only once the dialog really opens. An ask on the check may still be settled by the mode
   // (auto's classifier, bypass, dontAsk) without the person, so pinging there cried wolf.
   ;(on as any)('classic.PermissionRequest', async ($: any, e: any, next: any) => {
-    if (!QUESTION[e.tool_name] && !e.agent_id)
-      pingLater($, `Claude wants to use ${e.tool_name}. Approve or deny in the session.`, 'approval')
+    noteSession(e)
+    if (!QUESTION[e.tool_name] && !e.agent_id) pingLater($, wants(e.tool_name, e.tool_input), 'approval')
     return next(e)
   })
+  // The session's name, as Claude Code titles it.
+  ;(on as any)('classic.SessionStart', async ($: any, e: any, next: any) => { noteSession(e); return next(e) })
+  ;(on as any)('classic.UserPromptSubmit', async ($: any, e: any, next: any) => { noteSession(e); return next(e) })
 
   on('session.start', async ($, e, next) => {
     // One refused name (a clash with another plugin) must not stop the rest.

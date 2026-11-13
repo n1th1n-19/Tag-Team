@@ -499,7 +499,7 @@ def test_notify_tries_the_island_first_then_the_toast():
                 mock.patch.object(subprocess, "run", run), mock.patch.object(shutil, "which", lambda b: b == "notify-send"):
             popen.out = b"ok\n"
             assert cli.desktop_notify("", "Bash?", kind="approval", style="popup") == "popup"
-            assert spawned[-1][1:] == ["-m", "tagteam.popup", "approval", "", "Bash?"] and not toasts
+            assert spawned[-1][1:] == ["-m", "tagteam.popup", "approval", "", "Bash?", ""] and not toasts
             popen.out = b""  # no Tk or no display: the island never says ok
             assert cli.desktop_notify("", "Bash?", kind="approval", style="popup") == "notify-send"
             assert "🔐 Referee's call!" in toasts[-1] and any(a.startswith("--icon=") for a in toasts[-1])
