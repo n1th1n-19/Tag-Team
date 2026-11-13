@@ -143,7 +143,7 @@ setup_ring() {
 sign_tools() {
   uv tool install --upgrade claude-swap || uv tool install claude-swap
   # uv's own Python ships Tk (the ring-side island); an older uv without the flag still installs, toasts only.
-  uv tool install --force --managed-python --python 3.12 "$APP" || uv tool install --force --python 3.12 "$APP"
+  uv tool install --force --managed-python --python 3.12 "$APP" || uv tool install --force --python 3.12 "$APP" || return 1
   uv tool update-shell || true
   "$(command -v tagteam || echo "$HOME/.local/bin/tagteam")" tag-out-point || true
 }

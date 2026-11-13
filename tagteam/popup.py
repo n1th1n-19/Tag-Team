@@ -68,27 +68,30 @@ def _mix(a: str, b: str, t: float) -> str:
     return f"#{r:02x}{g:02x}{b:02x}"
 
 
-def _pidfile():
+def _stage():
+    """Who holds the stage: the newest island writes its token here; older ones see it and bow out."""
     from tagteam import store
-    path = store.home() / "cache" / "popup.pid"
+    path = store.home() / "cache" / "island"
     path.parent.mkdir(parents=True, exist_ok=True)
     return path
 
 
-def _replace_previous() -> None:
-    # ponytail: a new island replaces the old one; queue/morph between them if pings ever pile up.
-    import signal
+def _read_stage() -> str | None:
     try:
-        path = _pidfile()
-        old = int(path.read_text())
-        if old != os.getpid():
-            os.kill(old, signal.SIGTERM)
-    except (OSError, ValueError):
-        pass
+        return _stage().read_text()
+    except OSError:
+        return None
+
+
+def _claim_stage() -> str:
+    # ponytail: the newest island takes over and the older one springs shut; queue/morph if pings pile up.
+    # Cooperative on purpose: no signals, so a reused process id can never be hit.
+    token = f"{os.getpid()}-{time.time_ns()}"
     try:
-        _pidfile().write_text(str(os.getpid()))
+        _stage().write_text(token)
     except OSError:
         pass
+    return token
 
 
 class Island:
@@ -146,6 +149,7 @@ class Island:
         self.alpha = Spring(0, 220, 30, eps=0.01)
         self.w.to(PILL[0])
         self.phase, self.phase_at, self.left, self.hover = "pill", time.monotonic(), HOLD, False
+        self.token, self.checked = None, 0.0
         self.last = time.monotonic()
         root.bind("<Button-1>", lambda e: self.close())
         root.bind("<Enter>", lambda e: setattr(self, "hover", True))
@@ -179,6 +183,10 @@ class Island:
     def tick(self) -> None:
         now = time.monotonic()
         elapsed, self.last = now - self.last, now
+        if self.token and now - self.checked > 0.25:  # a newer island took the stage: bow out
+            self.checked = now
+            if _read_stage() not in (None, self.token):
+                self.close()
         for _ in range(2):
             for s in (self.w, self.h, self.r, self.alpha):
                 s.step()
@@ -198,6 +206,11 @@ class Island:
             self.phase = "vanish"
             self.w.to(0, 400, 40)
         elif self.phase == "vanish" and self.w.value < 2:
+            if self.token and _read_stage() == self.token:  # leave the stage only if it's still ours
+                try:
+                    _stage().unlink()
+                except OSError:
+                    pass
             self.root.destroy()
             return
         self.place()
@@ -245,7 +258,7 @@ def main(argv: list[str]) -> int:
     except Exception as exc:  # noqa: BLE001 - no tkinter, no display: the caller falls back to the OS toast
         print(f"no island: {exc}", file=sys.stderr)
         return 1
-    _replace_previous()
+    island.token = _claim_stage()
     island.show()
     return 0
 

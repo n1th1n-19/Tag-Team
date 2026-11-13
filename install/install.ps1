@@ -107,7 +107,8 @@ if ((Resolve-Path $Src).Path -ne $App) {
 Step "Installing claude-swap and tagteam"
 try { uv tool install --upgrade claude-swap } catch { uv tool install claude-swap }
 # uv's own Python ships Tk (the ring-side island); an older uv without the flag still installs, toasts only.
-uv tool install --force --managed-python --python 3.12 $App
+# try/catch: with $PSNativeCommandUseErrorActionPreference on, a failing uv would otherwise stop the script here.
+try { uv tool install --force --managed-python --python 3.12 $App } catch {}
 if ($LASTEXITCODE -ne 0) { uv tool install --force --python 3.12 $App }
 try { uv tool update-shell | Out-Null } catch {}
 # Move swap-me's history now (any tagteam command that reads ~/.tag-team does it).

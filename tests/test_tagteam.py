@@ -551,6 +551,17 @@ def test_notification_toggles_reach_the_cli_and_the_ring():
             assert "notifications are off" in out.getvalue() and len(styles) == 2
 
 
+def test_a_newer_island_takes_the_stage_without_signals():
+    from tagteam import popup
+    with tempfile.TemporaryDirectory() as d:
+        os.environ["TAGTEAM_HOME"] = d
+        first = popup._claim_stage()
+        assert popup._read_stage() == first
+        second = popup._claim_stage()
+        assert second != first and popup._read_stage() == second  # the first island sees this and bows out
+        assert not hasattr(popup, "_replace_previous")  # no kill-by-pid path left
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):
