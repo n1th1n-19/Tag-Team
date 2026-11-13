@@ -49,7 +49,7 @@ Built on [claude-swap](https://github.com/realiti4/claude-swap) (`cswap`). Works
   | 🔔 | Ringside update | Claude's own news (it calls `mcp__tag-team__notify`) |
   | 🤼 | TAG ME! | the partner in the ring is worn down |
 
-  With no display, or no Tk, you get the OS notification with the mascot icon instead. Three switches on the ring's **Notify** tab (in the editor extension and `tagteam ring`) turn it to your taste: **Notifications** on or off, **Island** (off: your system's own notification), **Ring bell**. Same from the terminal: `tagteam notifications on|off --island on|off --sound on|off`.
+  With no display, or no Tk, you get the OS notification with the mascot icon instead. Three switches on the ring's **Notify** tab (in the editor extension and `tagteam ring`) turn it to your taste: **Notifications** on or off, **Island** (off: your system's own notification), **Ring bell**. Same from the terminal: `tagteam notifications on|off --island on|off --sound on|off`. The ping text shows only while the island is up; in the OS-notification fallback it stays in your notification history like any other notification.
 - **Roster**: sign the current login, bring in a new partner via `/login`, sign by contract (a `claude setup-token` token or API key, passed on stdin), ring names, bench, release.
 - **Status line** for Claude Code: `[IN] work · ▮▮▮▯▯ stamina 41% · endurance 79% · tonight 236M`.
 - **Export** of the match history as CSV or JSON.
